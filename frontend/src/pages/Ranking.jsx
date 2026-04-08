@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { jobsApi, rankingApi } from '../api/client'
 import RankTable from '../components/RankTable'
 import JustificationCard from '../components/JustificationCard'
+import { InfoTip } from '../components/Tooltip'
 import { useToast } from '../contexts/ToastContext'
 
 const ROLE_PRESETS = {
@@ -127,7 +128,6 @@ export default function Ranking() {
             <div 
               className={`premium-toggle ${isBlindMode ? 'active' : ''}`}
               onClick={() => setIsBlindMode(!isBlindMode)}
-              title="Hide PII to prevent unconscious bias"
             >
               <div className="toggle-track">
                 <div className="toggle-thumb" />
@@ -136,6 +136,7 @@ export default function Ranking() {
                 {isBlindMode ? 'Blind Mode Active' : 'Enable Blind Mode'}
               </span>
             </div>
+            <InfoTip text="Blind Hiring Mode dynamically hides all Personally Identifiable Information (name, email, phone) during the ranking review. This prevents unconscious bias and ensures candidates are evaluated purely on merit and skill." position="bottom" />
           </div>
           <p>Paste a Job Description to semantically rank all parsed candidates</p>
         </div>
@@ -228,8 +229,9 @@ export default function Ranking() {
           {/* Quick guide */}
           <div style={{ marginTop:20, padding:'14px', background:'var(--bg)', borderRadius:'var(--radius-sm)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontSize:'.75rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:.5 }}>
+              <div style={{ fontSize:'.75rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:.5, display: 'flex', alignItems: 'center' }}>
                 AI Scoring Weights
+                <InfoTip text="These weights control how the Llama-3.3 AI engine prioritizes different dimensions when scoring candidates. Switch presets to tune for Technical (skills-heavy), Managing (experience-heavy), or Internship (education-heavy) roles." position="bottom" />
               </div>
               <select 
                 className="form-select btn-sm" 
@@ -297,23 +299,25 @@ export default function Ranking() {
             <div className="empty-state" style={{ minHeight:'400px' }}>
               {loading ? (
                 <>
-                  <div className="spinner spinner-dark" style={{ width:48, height:48, marginBottom:16 }} />
-                  <h3>Ranking in progress…</h3>
-                  <p style={{ maxWidth:320 }}>
-                    Our AI is reading each candidate's profile and scoring them against your JD.
-                    This takes 30–60 seconds depending on the number of candidates.
+                  <div className="empty-state-illustration">
+                    <div className="spinner spinner-dark" style={{ width:40, height:40 }} />
+                  </div>
+                  <h3>AI Ranking in Progress…</h3>
+                  <p>
+                    Our Llama-3.3 engine is reading each candidate's profile and scoring them semantically against your JD.
                   </p>
+                  <div className="empty-hint">⏱ This takes 30–60 seconds depending on the number of candidates.</div>
                 </>
               ) : (
                 <>
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} style={{ width:56, height:56, color:'var(--text-muted)' }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <h3>No rankings yet</h3>
+                  <div className="empty-state-illustration">
+                    <span className="empty-emoji">🏆</span>
+                  </div>
+                  <h3>Ready to Rank</h3>
                   <p>
-                    Select a job role, paste a Job Description on the left,
-                    then click <strong>Rank Candidates</strong>.
+                    Select a job role, paste a Job Description on the left, then click <strong>Rank Candidates</strong> to let our AI semantically score everyone.
                   </p>
+                  <div className="empty-hint">💡 Tip: Use <code>Blind Mode</code> to remove unconscious bias from your review.</div>
                 </>
               )}
             </div>

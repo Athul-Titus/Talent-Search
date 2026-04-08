@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { jobsApi } from '../api/client'
 import CreateJobModal from '../components/CreateJobModal'
+import { InfoTip } from '../components/Tooltip'
 
 function initials(name = '') {
   return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase() || '?'
@@ -27,7 +28,7 @@ function useCountUp(target, duration = 1200) {
 }
 
 // ── Premium KPI Card ─────────────────────────────────────────────────────────
-function KpiCard({ label, rawValue, suffix = '', prefix = '', gradientFrom, icon, sub, pulse, onClick }) {
+function KpiCard({ label, rawValue, suffix = '', prefix = '', gradientFrom, icon, sub, pulse, onClick, tooltip }) {
   const animated = useCountUp(typeof rawValue === 'number' ? rawValue : 0)
   const display = rawValue == null
     ? '—'
@@ -68,7 +69,10 @@ function KpiCard({ label, rawValue, suffix = '', prefix = '', gradientFrom, icon
         )}
       </div>
       <div style={{ fontSize: '2rem', fontWeight: 900, color: `rgb(${gradientFrom})`, lineHeight: 1, marginBottom: '6px', fontVariantNumeric: 'tabular-nums' }}>{display}</div>
-      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>{label}</div>
+      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)', marginBottom: '4px', display: 'flex', alignItems: 'center' }}>
+        {label}
+        {tooltip && <InfoTip text={tooltip} position="bottom" />}
+      </div>
       {sub && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{sub}</div>}
     </div>
   )
@@ -199,12 +203,12 @@ export default function Dashboard() {
 
       {/* ── Premium KPI Cards ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
-        <KpiCard label="Total Candidates" rawValue={totalCandidates} icon="👥" gradientFrom="74,144,196" sub="Across all roles" onClick={() => navigate('/upload')} />
-        <KpiCard label="Avg. Match Score" rawValue={avgMatchScore} suffix="%" icon="🎯" gradientFrom="212,175,55" sub="AI ranking accuracy" pulse={avgMatchScore > 70 ? 'Strong' : avgMatchScore > 50 ? 'Fair' : null} onClick={() => jobs.length > 0 && navigate(`/ranking/${jobs[0].id}`)} />
-        <KpiCard label="Shortlisted" rawValue={totalShortlisted} icon="✅" gradientFrom="0,200,83" sub="Ready for interview" pulse={totalShortlisted > 0 ? 'Active' : null} onClick={() => navigate('/upload')} />
-        <KpiCard label="Credibility Flags" rawValue={totalFlagged} icon="⚠️" gradientFrom="255,179,0" sub="Suspicious resumes" pulse={totalFlagged > 0 ? 'Review' : null} onClick={() => navigate('/upload')} />
-        <KpiCard label="Shortlist Rate" rawValue={shortlistRate} suffix="%" icon="📊" gradientFrom="139,92,246" sub="Of parsed candidates" onClick={() => jobs.length > 0 && navigate(`/ranking/${jobs[0].id}`)} />
-        <KpiCard label="Active Roles" rawValue={jobs.length} icon="💼" gradientFrom="59,130,246" sub="Open positions" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })} />
+        <KpiCard label="Total Candidates" rawValue={totalCandidates} icon="👥" gradientFrom="74,144,196" sub="Across all roles" onClick={() => navigate('/upload')} tooltip="Total number of resumes uploaded and ingested across all open job roles." />
+        <KpiCard label="Avg. Match Score" rawValue={avgMatchScore} suffix="%" icon="🎯" gradientFrom="212,175,55" sub="AI ranking accuracy" pulse={avgMatchScore > 70 ? 'Strong' : avgMatchScore > 50 ? 'Fair' : null} onClick={() => jobs.length > 0 && navigate(`/ranking/${jobs[0].id}`)} tooltip="The average semantic match score assigned by the Llama-3.3 AI engine across all ranked candidates." />
+        <KpiCard label="Shortlisted" rawValue={totalShortlisted} icon="✅" gradientFrom="0,200,83" sub="Ready for interview" pulse={totalShortlisted > 0 ? 'Active' : null} onClick={() => navigate('/upload')} tooltip="Candidates that recruiters have marked as Shortlisted and are ready for the interview stage." />
+        <KpiCard label="Credibility Flags" rawValue={totalFlagged} icon="⚠️" gradientFrom="255,179,0" sub="Suspicious resumes" pulse={totalFlagged > 0 ? 'Review' : null} onClick={() => navigate('/upload')} tooltip="Resumes flagged by the Anti-Keyword-Stuffing engine for abnormal skill density or unnatural keyword clustering." />
+        <KpiCard label="Shortlist Rate" rawValue={shortlistRate} suffix="%" icon="📊" gradientFrom="139,92,246" sub="Of parsed candidates" onClick={() => jobs.length > 0 && navigate(`/ranking/${jobs[0].id}`)} tooltip="The percentage of parsed candidates that have been shortlisted — a key pipeline health indicator." />
+        <KpiCard label="Active Roles" rawValue={jobs.length} icon="💼" gradientFrom="59,130,246" sub="Open positions" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })} tooltip="Number of open job positions currently accepting candidate applications." />
       </div>
 
       {/* Jobs Grid */}
@@ -222,12 +226,13 @@ export default function Dashboard() {
       ) : jobs.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            <h3>No job roles yet</h3>
-            <p>Create your first job role to start collecting and ranking candidates.</p>
-            <button className="btn btn-primary" style={{ marginTop:16 }} onClick={() => setShowModal(true)}>
+            <div className="empty-state-illustration">
+              <span className="empty-emoji">💼</span>
+            </div>
+            <h3>Welcome to Cymonic</h3>
+            <p>Create your first job role to start collecting, parsing, and AI-ranking candidates.</p>
+            <div className="empty-hint">💡 Each role acts as a pipeline — upload resumes, rank with AI, and manage workflow all in one place.</div>
+            <button className="btn btn-primary" style={{ marginTop:20 }} onClick={() => setShowModal(true)}>
               + Create First Role
             </button>
           </div>

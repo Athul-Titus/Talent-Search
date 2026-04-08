@@ -1,7 +1,9 @@
 /**
  * CredibilityBadge — shows the flag_level as a colored pill.
- * Hovering reveals the full AI reason as a tooltip.
+ * Hovering reveals the full AI reason via premium glassmorphism tooltip.
  */
+import Tooltip from './Tooltip'
+
 const FLAG_CONFIG = {
   'High Suspicion': {
     bg:     'rgba(239,68,68,0.12)',
@@ -31,27 +33,32 @@ export default function CredibilityBadge({ flagLevel, reason, score }) {
     bg: '#F1F5F9', border: '#CBD5E1', color: '#475569', icon: '⚪', label: '—',
   }
 
+  const tooltipText = reason
+    ? `Anti-Keyword-Stuffing Engine: ${flagLevel} (${score ?? '?'}/100) — ${reason}`
+    : `Credibility: ${flagLevel}`
+
   return (
-    <span
-      title={reason ? `${flagLevel} (${score ?? '?'}/100)\n${reason}` : flagLevel}
-      style={{
-        display:        'inline-flex',
-        alignItems:     'center',
-        gap:            5,
-        padding:        '4px 10px',
-        borderRadius:   20,
-        fontSize:       '.7rem',
-        fontWeight:     700,
-        background:     cfg.bg,
-        color:          cfg.color,
-        border:         `1.5px solid ${cfg.border}`,
-        cursor:         reason ? 'help' : 'default',
-        whiteSpace:     'nowrap',
-        letterSpacing:  '.2px',
-        transition:     'opacity .15s',
-      }}
-    >
-      {cfg.icon} {cfg.label}
-    </span>
+    <Tooltip text={tooltipText} position="top" maxWidth={340}>
+      <span
+        style={{
+          display:        'inline-flex',
+          alignItems:     'center',
+          gap:            5,
+          padding:        '4px 10px',
+          borderRadius:   20,
+          fontSize:       '.7rem',
+          fontWeight:     700,
+          background:     cfg.bg,
+          color:          cfg.color,
+          border:         `1.5px solid ${cfg.border}`,
+          cursor:         'help',
+          whiteSpace:     'nowrap',
+          letterSpacing:  '.2px',
+          transition:     'opacity .15s',
+        }}
+      >
+        {cfg.icon} {cfg.label}
+      </span>
+    </Tooltip>
   )
 }

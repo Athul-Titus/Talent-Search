@@ -325,8 +325,13 @@ export default function Upload() {
               </div>
 
               {candidates.length === 0 && !uploading && (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '32px', fontSize: '.875rem' }}>
-                  No resumes uploaded yet. Drag files above to start.
+                <div className="empty-state" style={{ padding: '40px 32px' }}>
+                  <div className="empty-state-illustration">
+                    <span className="empty-emoji">📄</span>
+                  </div>
+                  <h3>No Resumes Yet</h3>
+                  <p>Drag & drop PDF, DOCX, or image resumes into the dropzone above to begin AI parsing.</p>
+                  <div className="empty-hint">💡 Tip: You can upload <code>multiple files</code> at once for batch processing.</div>
                 </div>
               )}
 
@@ -340,11 +345,12 @@ export default function Upload() {
             </>
           ) : (
             <div className="empty-state" style={{ marginTop: 40 }}>
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} style={{ width: 56, height: 56, color: 'var(--text-muted)' }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
+              <div className="empty-state-illustration">
+                <span className="empty-emoji">📂</span>
+              </div>
               <h3>Select a Job Role</h3>
-              <p>Choose a job role above to start uploading resumes, or create a new role from the Dashboard.</p>
+              <p>Choose a job role from the dropdown above to start uploading resumes, or create a new role from the Dashboard.</p>
+              <div className="empty-hint">💡 Each role has its own candidate pipeline — resumes are organized per position.</div>
             </div>
           )}
         </>
@@ -377,11 +383,12 @@ export default function Upload() {
           {/* Date-grouped list */}
           {dateGroups.length === 0 ? (
             <div className="empty-state" style={{ marginTop: 40 }}>
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} style={{ width: 56, height: 56, color: 'var(--text-muted)' }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <h3>No upload batches yet</h3>
-              <p>Select a job role and upload resumes to see them grouped by batch date here.</p>
+              <div className="empty-state-illustration">
+                <span className="empty-emoji">📅</span>
+              </div>
+              <h3>No Upload Batches Yet</h3>
+              <p>Select a job role and upload resumes to see them organized by batch date here.</p>
+              <div className="empty-hint">💡 Tip: Date mode helps track <code>when</code> candidates entered your pipeline.</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
