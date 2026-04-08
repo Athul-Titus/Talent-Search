@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
+import LogoAnimation from './LogoAnimation'
 
 const NAV = [
   {
@@ -31,20 +32,30 @@ export default function Sidebar() {
     <aside className="sidebar">
       {/* Logo */}
       <div className="sidebar-logo">
-        <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'4px' }}>
-          <div style={{
-            width:'32px', height:'32px', borderRadius:'8px',
-            background:'linear-gradient(135deg,#4A90C4,#10B981)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            flexShrink:0,
-          }}>
-            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-          </div>
-          <h1>Cymonic</h1>
+        {/* Animated AI core — click to play */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
+          <LogoAnimation />
         </div>
-        <span>Talent Selection Engine</span>
+
+        {/* Premium wordmark */}
+        <div style={{ textAlign: 'center' }}>
+          <div className="logo-wordmark">
+            Cymonic
+          </div>
+          <div style={{
+            fontSize: '.6rem',
+            fontWeight: 600,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'transparent',
+            background: 'linear-gradient(90deg, rgba(20,200,200,0.5), rgba(212,175,55,0.6), rgba(20,200,200,0.5))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}>
+            Talent · AI · Engine
+          </div>
+        </div>
       </div>
 
       {/* Nav */}
