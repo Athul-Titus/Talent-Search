@@ -1,5 +1,6 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -52,6 +53,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Global Exception Handler ──────────────────────────────
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    error_msg = str(exc)
+    stack_trace = traceback.format_exc()
+    
+    # Log to server console
+    print(f"ERROR: {request.method} {request.url}")
+    print(stack_trace)
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An internal server error occurred.",
+            "error_type": type(exc).__name__,
+            "message": error_msg,
+            # In production, we might hide the stack trace, but for this project we'll show it for better UX feedback
+            "debug_trace": stack_trace if os.getenv("DEBUG") else None
+        }
+    )
+
 
 app.include_router(jobs.router)
 app.include_router(resumes.router)

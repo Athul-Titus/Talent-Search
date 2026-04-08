@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import './Toast.css'
 
 const ToastContext = createContext(null)
@@ -24,6 +24,16 @@ export function ToastProvider({ children }) {
   const removeToast = useCallback((id) => {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
+
+  // ── Global Listener for non-React code (e.g. API interceptors) ──
+  useEffect(() => {
+    const handleGlobalToast = (e) => {
+      const { message, type, duration } = e.detail || {}
+      if (message) addToast(message, type, duration)
+    }
+    window.addEventListener('cymonic-toast', handleGlobalToast)
+    return () => window.removeEventListener('cymonic-toast', handleGlobalToast)
+  }, [addToast])
 
   const toast = {
     success: (msg, duration) => addToast(msg, 'success', duration),

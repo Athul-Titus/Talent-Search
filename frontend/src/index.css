@@ -99,6 +99,7 @@ body {
   font-weight: 800;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -.5px;
 }
@@ -911,4 +912,35 @@ body {
   border-radius: 4px;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+/* ── Error & Fallback ─────────────────────────────────── */
+.error-boundary-wrapper {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.error-text-glitch {
+  color: var(--danger);
+  font-family: monospace;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.status-error-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.05);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

@@ -5,6 +5,45 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// ── Shared Toast Dispatcher for non-React code ──
+const showGlobalToast = (message, type = 'error') => {
+  window.dispatchEvent(new CustomEvent('cymonic-toast', {
+    detail: { message, type }
+  }))
+}
+
+// ── Global Error Interceptor ──────────────────────────────
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Check for network errors
+    if (!error.response) {
+      showGlobalToast('Network error: Please check your connection or ensures the server is running.')
+      return Promise.reject(error)
+    }
+
+    const { status, data } = error.response
+    const message = data?.detail || data?.message || error.message || 'An unexpected error occurred.'
+
+    // Specific Status Handlers
+    if (status === 401) {
+      showGlobalToast('Session expired. Please refresh the page.', 'warning')
+    } else if (status === 413) {
+      showGlobalToast('Payload too large. Use smaller files.', 'error')
+    } else if (status >= 500) {
+      showGlobalToast(`Server error (${status}): ${message}`, 'error')
+    } else if (status === 422) {
+      // Validation error (often file format or invalid JSON)
+      showGlobalToast(`Validation failed: ${message}`, 'warning')
+    } else {
+      // Regular error
+      showGlobalToast(message, 'error')
+    }
+
+    return Promise.reject(error)
+  }
+)
+
 // ── Jobs ────────────────────────────────────────────────
 export const jobsApi = {
   list:   ()          => api.get('/jobs/').then(r => r.data),
