@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { jobsApi, rankingApi } from '../api/client'
 import RankTable from '../components/RankTable'
 import JustificationCard from '../components/JustificationCard'
+import { useToast } from '../contexts/ToastContext'
 
 const ROLE_PRESETS = {
   Default: { experience: 35, skills: 30, domain: 20, education: 15 },
@@ -14,6 +15,7 @@ const ROLE_PRESETS = {
 export default function Ranking() {
   const { jobId }   = useParams()
   const navigate    = useNavigate()
+  const toast       = useToast()
 
   const [jobs, setJobs]             = useState([])
   const [selectedJob, setSelectedJob] = useState(jobId || '')
@@ -50,10 +52,11 @@ export default function Ranking() {
   }
 
   async function handleRank() {
-    if (!selectedJob) { alert('Select a job role first.'); return }
-    if (!jdText.trim()) { alert('Paste or upload a Job Description first.'); return }
+    if (!selectedJob) { toast.warning('Select a job role first.'); return }
+    if (!jdText.trim()) { toast.warning('Paste or upload a Job Description first.'); return }
     setLoading(true)
     setStep('Queuing AI scoring…')
+    toast.info('AI ranking queued. This may take a minute...')
     setResults([])
     stopPolling()
 
@@ -77,6 +80,7 @@ export default function Ranking() {
             const data = await rankingApi.getResults(selectedJob)
             setResults(data)
             setStep(`Ranked ${data.length} candidates`)
+            toast.success(`Semantic ranking complete! ${data.length} candidates scored.`)
             setLoading(false)
             stopPolling()
           }
@@ -93,7 +97,7 @@ export default function Ranking() {
       }, 3 * 60 * 1000)
     } catch (err) {
       const msg = err.response?.data?.detail || err.message
-      alert('Error: ' + msg)
+      toast.error('Ranking failed: ' + msg)
       setLoading(false)
       setStep('')
     }

@@ -4,25 +4,28 @@ import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
 import Ranking from './pages/Ranking'
 import QueryEngine from './components/QueryEngine'
+import { ToastProvider } from './contexts/ToastContext'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <div className="app-shell">
-        <Sidebar />
-        <main className="main-content">
-          <Routes>
-            <Route path="/"           element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard"  element={<Dashboard />} />
-            <Route path="/upload"     element={<Upload />} />
-            <Route path="/upload/:jobId" element={<Upload />} />
-            <Route path="/ranking"    element={<Ranking />} />
-            <Route path="/ranking/:jobId" element={<Ranking />} />
-          </Routes>
-        </main>
-        {/* ── Cymonic Query Engine: global floating widget ─── */}
-        <QueryEngine />
-      </div>
-    </BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
+        <div className="app-shell">
+          <Sidebar />
+          <main className="main-content">
+            <Routes>
+              <Route path="/"           element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard"  element={<Dashboard />} />
+              <Route path="/upload"     element={<Upload />} />
+              <Route path="/upload/:jobId" element={<Upload />} />
+              <Route path="/ranking"    element={<Ranking />} />
+              <Route path="/ranking/:jobId" element={<Ranking />} />
+            </Routes>
+          </main>
+          {/* ── Cymonic Query Engine: global floating widget ─── */}
+          <QueryEngine />
+        </div>
+      </BrowserRouter>
+    </ToastProvider>
   )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { jobsApi } from '../api/client'
+import { useToast } from '../contexts/ToastContext'
 
 export default function CreateJobModal({ onClose, onCreated }) {
   const [form, setForm]   = useState({ title: '', department: '', description: '' })
@@ -8,6 +9,8 @@ export default function CreateJobModal({ onClose, onCreated }) {
 
   const DEPTS = ['Engineering','Product','Design','Data Science','Marketing','Operations','Sales','HR','Finance','Other']
 
+  const toast = useToast()
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.title.trim()) { setError('Job title is required'); return }
@@ -15,10 +18,13 @@ export default function CreateJobModal({ onClose, onCreated }) {
     setError('')
     try {
       const job = await jobsApi.create(form)
+      toast.success(`Role "${job.title}" created successfully!`)
       onCreated(job)
       onClose()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create job role')
+      const msg = err.response?.data?.detail || 'Failed to create job role'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }

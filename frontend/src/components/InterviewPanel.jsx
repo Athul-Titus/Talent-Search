@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { candidatesApi } from '../api/client'
+import { useToast } from '../contexts/ToastContext'
 
 function copyToClipboard(questions) {
   const text = questions
@@ -17,7 +18,7 @@ export default function InterviewPanel({ candidateId, candidateName, jdText, onC
   const [loading, setLoading]     = useState(true)
   const [questions, setQuestions] = useState(null)
   const [error, setError]         = useState('')
-  const [copied, setCopied]       = useState(false)
+  const toast = useToast()
 
   // Auto-fetch on mount
   useEffect(() => {
@@ -29,10 +30,13 @@ export default function InterviewPanel({ candidateId, candidateName, jdText, onC
     candidatesApi.generateQuestions(candidateId, jdText)
       .then(data => {
         setQuestions(data.questions || [])
+        toast.success('Interview questions generated!')
         setLoading(false)
       })
       .catch(e => {
-        setError(e.response?.data?.detail || 'Failed to generate questions. Please try again.')
+        const msg = e.response?.data?.detail || 'Failed to generate questions. Please try again.'
+        setError(msg)
+        toast.error(msg)
         setLoading(false)
       })
   }, [])
@@ -40,8 +44,7 @@ export default function InterviewPanel({ candidateId, candidateName, jdText, onC
   function handleCopy() {
     if (questions) {
       copyToClipboard(questions)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      toast.success('Questions copied to clipboard!')
     }
   }
 
@@ -98,7 +101,7 @@ export default function InterviewPanel({ candidateId, candidateName, jdText, onC
               onClick={handleCopy}
               style={{ fontSize: '.73rem' }}
             >
-              {copied ? '✓ Copied!' : '📋 Copy All'}
+              📋 Copy All
             </button>
           </div>
         </>

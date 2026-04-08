@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { jobsApi, resumesApi } from '../api/client'
 import FileDropzone from '../components/FileDropzone'
+import { useToast } from '../contexts/ToastContext'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 function statusColor(status) {
@@ -112,6 +113,7 @@ function GroupToggle({ value, onChange }) {
 export default function Upload() {
   const { jobId }  = useParams()
   const navigate   = useNavigate()
+  const toast      = useToast()
 
   const [jobs, setJobs]                     = useState([])
   const [selectedJob, setSelectedJob]       = useState(jobId || '')
@@ -153,7 +155,12 @@ export default function Upload() {
           if (newStatus && c.status !== newStatus) {
             changed = true
             // If they finish parsing, we must refresh to grab their extracted real Name & Email
-            if (newStatus === 'parsed' || newStatus === 'failed') {
+            if (newStatus === 'parsed') {
+              toast.success(`Candidate ${c.name === 'Parsing...' ? '' : c.name} parsed successfully!`)
+              needsFullRefresh = true
+            }
+            if (newStatus === 'failed') {
+              toast.error(`Parsing failed for a candidate.`)
               needsFullRefresh = true
             }
             return { ...c, status: newStatus }
@@ -205,11 +212,13 @@ export default function Upload() {
     setUploadProgress(0)
     try {
       const result = await resumesApi.upload(parseInt(selectedJob), files, pct => setUploadProgress(pct))
+      toast.success(`Successfully uploaded ${files.length} resume${files.length > 1 ? 's' : ''}!`)
       const newRows = result.candidates.map((c, i) => ({ file: files[i], candidateId: c.id }))
       setLocalFiles(prev => [...prev, ...newRows])
       await loadData()
     } catch (e) {
-      alert('Upload failed: ' + (e.response?.data?.detail || e.message))
+      const msg = e.response?.data?.detail || e.message
+      toast.error('Upload failed: ' + msg)
     } finally {
       setUploading(false)
       setUploadProgress(0)

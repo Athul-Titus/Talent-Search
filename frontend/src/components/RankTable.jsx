@@ -9,6 +9,7 @@ import EmailDrafterModal from './EmailDrafterModal'
 import DossierTemplate from './DossierTemplate'
 import ResumeViewerModal from './ResumeViewerModal'
 import { exportToPdf } from '../utils/pdfExport'
+import { useToast } from '../contexts/ToastContext'
 
 function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
@@ -42,6 +43,7 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
   // PDF Export
   const [exportingCandidate, setExportingCandidate] = useState(null)
   const [exportLoadingId, setExportLoadingId] = useState(null)
+  const toast = useToast()
   const dossierRef = useRef(null)
 
   const triggerExport = async (r) => {
@@ -56,7 +58,11 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
     // Wait for the DOM to update and render the hidden template
     setTimeout(async () => {
       const success = await exportToPdf(dossierRef, `Dossier_${candidateData.candidateName.replace(/ /g, '_')}.pdf`)
-      if (!success) alert('Failed to generate PDF')
+      if (!success) {
+        toast.error('Failed to generate PDF')
+      } else {
+        toast.success(`Dossier for ${candidateData.candidateName} exported!`)
+      }
       setExportingCandidate(null)
       setExportLoadingId(null)
     }, 150)

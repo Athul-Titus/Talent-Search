@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { candidatesApi } from '../api/client'
+import { useToast } from '../contexts/ToastContext'
 
 export default function EmailDrafterModal({ candidateId, candidateName, candidateEmail, jdText, intent, onClose }) {
   const [loading, setLoading] = useState(true)
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [error, setError] = useState('')
+
+  const toast = useToast()
 
   useEffect(() => {
     async function fetchEmail() {
@@ -14,7 +17,9 @@ export default function EmailDrafterModal({ candidateId, candidateName, candidat
         const res = await candidatesApi.generateEmail(candidateId, jdText, intent)
         setEmailSubject(res.subject)
         setEmailBody(res.body)
+        toast.success('AI Email draft generated successfully!')
       } catch (err) {
+        toast.error('Failed to generate email draft.')
         setError('Failed to generate email. Make sure NVIDIA NIM API is running.')
       } finally {
         setLoading(false)
@@ -25,7 +30,7 @@ export default function EmailDrafterModal({ candidateId, candidateName, candidat
 
   const handleCopy = () => {
     navigator.clipboard.writeText(`Subject: ${emailSubject}\n\n${emailBody}`)
-    alert('Copied to clipboard!')
+    toast.success('Copied to clipboard!')
   }
 
   const intentColor = intent === 'shortlist' ? '#00C853' : '#FF1744'

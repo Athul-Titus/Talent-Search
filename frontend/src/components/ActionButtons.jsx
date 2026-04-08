@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { candidatesApi } from '../api/client'
 import { createPortal } from 'react-dom'
+import { useToast } from '../contexts/ToastContext'
 
 const ACTIONS = [
   {
@@ -38,6 +39,7 @@ export default function ActionButtons({ candidateId, initialStatus = 'pending', 
   const [showNote, setShowNote]     = useState(false)
   const [saving, setSaving]         = useState(false)
   const [notePos, setNotePos]       = useState({ top: 0, left: 0 })
+  const toast = useToast()
   const noteRef = useRef(null)
   const noteBtnRef = useRef(null)
 
@@ -61,7 +63,14 @@ export default function ActionButtons({ candidateId, initialStatus = 'pending', 
       await candidatesApi.updateStatus(candidateId, target, note || undefined)
       setStatus(target)
       onStatusChange?.(candidateId, target)
+      if (target !== 'pending') {
+        const actionLabel = ACTIONS.find(a => a.key === target)?.label || 'Updated'
+        toast.success(`Candidate ${actionLabel}!`)
+      } else {
+        toast.info('Status reset to pending.')
+      }
     } catch (e) {
+      toast.error('Status update failed.')
       console.error('Status update failed', e)
     } finally {
       setSaving(false)
@@ -71,8 +80,10 @@ export default function ActionButtons({ candidateId, initialStatus = 'pending', 
   async function saveNote() {
     try {
       await candidatesApi.updateStatus(candidateId, status, note)
+      toast.success('Note saved!')
       setShowNote(false)
     } catch (e) {
+      toast.error('Failed to save note.')
       console.error('Note save failed', e)
     }
   }

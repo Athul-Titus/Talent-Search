@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
+import { useToast } from '../contexts/ToastContext'
 
 const ACCEPTED = {
   'application/pdf':                        ['.pdf'],
@@ -10,12 +11,23 @@ const ACCEPTED = {
 }
 
 export default function FileDropzone({ onFiles }) {
+  const toast = useToast()
+
   const onDrop = useCallback((accepted) => {
     if (accepted.length > 0) onFiles(accepted)
   }, [onFiles])
 
+  const onDropRejected = useCallback((fileRejections) => {
+    fileRejections.forEach(rejection => {
+      const { file, errors } = rejection
+      const errorMsg = errors[0]?.message || 'Invalid file type'
+      toast.error(`${file.name}: ${errorMsg}`)
+    })
+  }, [toast])
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: ACCEPTED,
     multiple: true,
     maxSize: 20 * 1024 * 1024,
