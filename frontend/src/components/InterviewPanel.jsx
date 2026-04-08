@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { candidatesApi } from '../api/client'
 
 function copyToClipboard(questions) {
@@ -8,39 +8,34 @@ function copyToClipboard(questions) {
   navigator.clipboard.writeText(text).catch(() => {})
 }
 
-export default function InterviewPanel({ candidateId, candidateName, jdText }) {
-  const [open, setOpen]           = useState(false)
-  const [loading, setLoading]     = useState(false)
+/**
+ * Floating fixed-position interview panel.
+ * Rendered by RankTable as a global overlay — one at a time.
+ * Opens immediately on mount and fetches questions right away.
+ */
+export default function InterviewPanel({ candidateId, candidateName, jdText, onClose }) {
+  const [loading, setLoading]     = useState(true)
   const [questions, setQuestions] = useState(null)
   const [error, setError]         = useState('')
   const [copied, setCopied]       = useState(false)
 
-  async function handleGenerate() {
-    if (open && questions) {
-      // Second click — collapse
-      setOpen(false)
-      return
-    }
+  // Auto-fetch on mount
+  useEffect(() => {
     if (!jdText?.trim()) {
-      setError('Paste a Job Description first (left panel).')
-      setOpen(true)
+      setError('No Job Description found. Paste a JD in the left panel first.')
+      setLoading(false)
       return
     }
-
-    setLoading(true)
-    setOpen(true)
-    setError('')
-    setQuestions(null)
-
-    try {
-      const data = await candidatesApi.generateQuestions(candidateId, jdText)
-      setQuestions(data.questions || [])
-    } catch (e) {
-      setError(e.response?.data?.detail || 'Failed to generate questions. Try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
+    candidatesApi.generateQuestions(candidateId, jdText)
+      .then(data => {
+        setQuestions(data.questions || [])
+        setLoading(false)
+      })
+      .catch(e => {
+        setError(e.response?.data?.detail || 'Failed to generate questions. Please try again.')
+        setLoading(false)
+      })
+  }, [])
 
   function handleCopy() {
     if (questions) {
@@ -51,82 +46,63 @@ export default function InterviewPanel({ candidateId, candidateName, jdText }) {
   }
 
   return (
-    <>
-      {/* Trigger button */}
-      <button
-        className={`action-btn interview-btn ${open ? 'interview-btn-active' : ''}`}
-        onClick={handleGenerate}
-        disabled={loading}
-        title="Generate AI interview questions for this candidate"
-      >
-        {loading ? (
-          <>
-            <span className="spinner spinner-dark" style={{ width: 11, height: 11, borderWidth: 2 }} />
-            Analyzing…
-          </>
-        ) : (
-          <>🎤 {open && questions ? 'Hide' : 'Questions'}</>
-        )}
-      </button>
+    <div className="interview-panel">
+      {/* Header */}
+      <div className="interview-panel-header">
+        <span className="interview-panel-title">🎤 Interview Questions</span>
+        <span className="interview-panel-name">{candidateName}</span>
+        <button className="interview-close" onClick={onClose} title="Close">✕</button>
+      </div>
 
-      {/* Expandable panel — rendered outside the button, as a sibling */}
-      {open && (
-        <div className="interview-panel">
-          <div className="interview-panel-header">
-            <span className="interview-panel-title">
-              🎤 Interview Questions
-            </span>
-            <span className="interview-panel-name">{candidateName}</span>
-            <button
-              className="interview-close"
-              onClick={() => setOpen(false)}
-              title="Close"
-            >✕</button>
-          </div>
-
-          {loading && (
-            <div className="interview-loading">
-              <div className="spinner spinner-dark" style={{ width: 24, height: 24 }} />
-              <p>Analyzing candidate profile against JD…</p>
-            </div>
-          )}
-
-          {error && !loading && (
-            <div className="interview-error">{error}</div>
-          )}
-
-          {questions && !loading && (
-            <>
-              <div className="interview-questions-list">
-                {questions.map((q, i) => (
-                  <div key={i} className="interview-question-item">
-                    <div className="interview-q-number">Q{i + 1}</div>
-                    <div className="interview-q-body">
-                      <p className="interview-q-text">"{q.question}"</p>
-                      {q.reason && (
-                        <span className="interview-reason-tag">💡 {q.reason}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="interview-panel-footer">
-                <span style={{ fontSize: '.75rem', color: 'var(--text-muted)' }}>
-                  {questions.length} targeted question{questions.length !== 1 ? 's' : ''} generated
-                </span>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={handleCopy}
-                  style={{ fontSize: '.75rem' }}
-                >
-                  {copied ? '✓ Copied!' : '📋 Copy All'}
-                </button>
-              </div>
-            </>
-          )}
+      {/* Loading */}
+      {loading && (
+        <div className="interview-loading">
+          <div className="spinner spinner-dark" style={{ width: 28, height: 28 }} />
+          <p>Analyzing candidate profile against JD…</p>
         </div>
       )}
-    </>
+
+      {/* Error */}
+      {error && !loading && (
+        <div className="interview-error">
+          ⚠️ {error}
+          <div style={{ marginTop: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* Questions */}
+      {questions && !loading && (
+        <>
+          <div className="interview-questions-list">
+            {questions.map((q, i) => (
+              <div key={i} className="interview-question-item">
+                <div className="interview-q-number">Q{i + 1}</div>
+                <div className="interview-q-body">
+                  <p className="interview-q-text">"{q.question}"</p>
+                  {q.reason && (
+                    <span className="interview-reason-tag">💡 {q.reason}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="interview-panel-footer">
+            <span style={{ fontSize: '.73rem', color: 'var(--text-muted)' }}>
+              {questions.length} targeted question{questions.length !== 1 ? 's' : ''}
+            </span>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={handleCopy}
+              style={{ fontSize: '.73rem' }}
+            >
+              {copied ? '✓ Copied!' : '📋 Copy All'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   )
 }

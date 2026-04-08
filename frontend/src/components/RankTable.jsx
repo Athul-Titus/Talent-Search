@@ -30,8 +30,7 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
   const [filter, setFilter]           = useState('')
   const [workflowTab, setWorkflowTab] = useState('all')
   const [localStatuses, setLocalStatuses] = useState({})
-
-  // Interview panel — one open at a time, tracks which candidate
+  // One floating interview panel open at a time
   const [interviewCandidate, setInterviewCandidate] = useState(null) // { id, name }
 
   function getStatus(r) {
@@ -68,14 +67,10 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
 
   return (
     <div>
-      {/* Workflow filter tabs */}
-      <WorkflowFilterTabs
-        results={results}
-        activeTab={workflowTab}
-        onTabChange={setWorkflowTab}
-      />
+      {/* ── Filter tabs ── */}
+      <WorkflowFilterTabs results={results} activeTab={workflowTab} onTabChange={setWorkflowTab} />
 
-      {/* Search bar */}
+      {/* ── Search bar ── */}
       <div className="filters-row" style={{ marginTop: 12 }}>
         <input
           className="form-input"
@@ -94,38 +89,40 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
         </span>
       </div>
 
+      {/* ── Table ── */}
       <div className="table-wrap">
         <table className="rank-table">
           <thead>
             <tr>
-              <th onClick={() => toggleSort('rank')} style={{ width: 56 }}>
+              <th onClick={() => toggleSort('rank')} style={{ width: 52 }}>
                 # <SortIcon k="rank" />
               </th>
               <th onClick={() => toggleSort('candidate_name')}>
                 Candidate <SortIcon k="candidate_name" />
               </th>
-              <th onClick={() => toggleSort('overall_score')} style={{ width: 140 }}>
+              <th onClick={() => toggleSort('overall_score')} style={{ width: 138 }}>
                 Score <SortIcon k="overall_score" />
               </th>
-              <th onClick={() => toggleSort('total_professional_years')} style={{ width: 72 }}>
+              <th onClick={() => toggleSort('total_professional_years')} style={{ width: 68 }}>
                 Exp <SortIcon k="total_professional_years" />
               </th>
-              <th style={{ width: 160 }}>Skills</th>
-              <th onClick={() => toggleSort('credibility_score')} style={{ width: 110 }}>
+              <th style={{ width: 155 }}>Skills</th>
+              <th onClick={() => toggleSort('credibility_score')} style={{ width: 108 }}>
                 Credibility <SortIcon k="credibility_score" />
               </th>
-              <th style={{ minWidth: 300 }}>Actions &amp; Interview</th>
+              <th>Actions &amp; 🎤 Interview</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(r => (
               <tr key={r.id} style={rowStyle(r.workflow_status)}>
+
                 {/* Rank */}
                 <td><RankBadge rank={r.rank} /></td>
 
                 {/* Candidate */}
                 <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                     <div style={{
                       width: 30, height: 30, borderRadius: '50%',
                       background: 'linear-gradient(135deg,var(--primary),var(--primary-mid))',
@@ -139,8 +136,8 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
                       {r.candidate_email && <div className="cemail">{r.candidate_email}</div>}
                       {r.status_note && (
                         <div title={r.status_note} style={{
-                          fontSize: '.65rem', color: 'var(--primary-light)', marginTop: 1,
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150,
+                          fontSize: '.63rem', color: 'var(--primary-light)', marginTop: 1,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 145,
                         }}>
                           📝 {r.status_note}
                         </div>
@@ -174,33 +171,34 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
                     : <span style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>—</span>}
                 </td>
 
-                {/* Actions + 🎤 Interview button — all in one cell */}
+                {/* Actions + 🎤 in one cell */}
                 <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     <ActionButtons
                       candidateId={r.candidate_id}
                       initialStatus={r.workflow_status}
                       initialNote={r.status_note || ''}
                       onStatusChange={handleStatusChange}
                     />
-                    {/* Divider */}
-                    <span style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />
-                    {/* Interview button */}
+                    {/* visual divider */}
+                    <span style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0, margin: '0 2px' }} />
+                    {/* 🎤 Interview trigger button */}
                     <button
-                      className={`action-btn interview-btn ${interviewCandidate?.id === r.candidate_id ? 'interview-btn-active' : ''}`}
-                      title={jdText ? 'Generate AI interview questions' : 'Paste JD first to enable this'}
+                      className={`action-btn interview-btn${interviewCandidate?.id === r.candidate_id ? ' interview-btn-active' : ''}`}
+                      title={jdText ? 'Generate AI interview questions' : 'Paste the JD first to enable this'}
                       onClick={() => {
-                        if (interviewCandidate?.id === r.candidate_id) {
-                          setInterviewCandidate(null)  // close / toggle off
-                        } else {
-                          setInterviewCandidate({ id: r.candidate_id, name: r.candidate_name })
-                        }
+                        setInterviewCandidate(
+                          interviewCandidate?.id === r.candidate_id
+                            ? null
+                            : { id: r.candidate_id, name: r.candidate_name }
+                        )
                       }}
                     >
                       🎤 Questions
                     </button>
                   </div>
                 </td>
+
               </tr>
             ))}
           </tbody>
@@ -216,13 +214,13 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
             <p>
               {workflowTab === 'all'
                 ? 'Paste a JD and click "Rank Candidates".'
-                : 'Use the action buttons to assign candidates here.'}
+                : 'Use the action buttons to move candidates here.'}
             </p>
           </div>
         )}
       </div>
 
-      {/* ── Global floating interview panel — one at a time ── */}
+      {/* ── Global floating interview panel (fixed bottom-right) ── */}
       {interviewCandidate && (
         <InterviewPanel
           key={interviewCandidate.id}
@@ -232,226 +230,6 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
           onClose={() => setInterviewCandidate(null)}
         />
       )}
-    </div>
-  )
-}
-
-
-function initials(name = '') {
-  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
-}
-
-function RankBadge({ rank }) {
-  const cls = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : ''
-  return <div className={`rank-number ${cls}`}>{rank}</div>
-}
-
-/** Row background tint based on workflow status */
-function rowStyle(workflowStatus) {
-  switch (workflowStatus) {
-    case 'shortlisted': return { background: 'rgba(0,200,83,0.04)',  borderLeft: '3px solid rgba(0,200,83,0.5)' }
-    case 'on_hold':     return { background: 'rgba(255,179,0,0.04)', borderLeft: '3px solid rgba(255,179,0,0.5)' }
-    case 'rejected':    return { background: 'rgba(255,23,68,0.04)',  borderLeft: '3px solid rgba(255,23,68,0.4)', opacity: 0.55 }
-    default:            return {}
-  }
-}
-
-export default function RankTable({ results: initialResults, jdText = '' }) {
-  const [sortKey, setSortKey]         = useState('rank')
-  const [sortDir, setSortDir]         = useState('asc')
-  const [filter, setFilter]           = useState('')
-  const [workflowTab, setWorkflowTab] = useState('all')
-  const [localStatuses, setLocalStatuses] = useState({})
-  // Track which candidates have the interview panel open
-  const [openPanels, setOpenPanels]   = useState({})
-
-  function getStatus(r) {
-    return localStatuses[r.candidate_id] ?? r.workflow_status ?? 'pending'
-  }
-
-  function handleStatusChange(candidateId, newStatus) {
-    setLocalStatuses(prev => ({ ...prev, [candidateId]: newStatus }))
-  }
-
-  const results = initialResults.map(r => ({
-    ...r,
-    workflow_status: getStatus(r),
-  }))
-
-  function toggleSort(key) {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('asc') }
-  }
-
-  const filtered = results
-    .filter(r => !filter || r.candidate_name.toLowerCase().includes(filter.toLowerCase()))
-    .filter(r => workflowTab === 'all' || r.workflow_status === workflowTab)
-    .sort((a, b) => {
-      let va = a[sortKey], vb = b[sortKey]
-      if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase() }
-      return sortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1)
-    })
-
-  const SortIcon = ({ k }) => {
-    if (sortKey !== k) return <span style={{ opacity: .3 }}>↕</span>
-    return <span>{sortDir === 'asc' ? '↑' : '↓'}</span>
-  }
-
-  const COLS = 8  // total column count for colspan
-
-  return (
-    <div>
-      {/* Workflow filter tabs */}
-      <WorkflowFilterTabs
-        results={results}
-        activeTab={workflowTab}
-        onTabChange={setWorkflowTab}
-      />
-
-      {/* Search bar */}
-      <div className="filters-row" style={{ marginTop: 12 }}>
-        <input
-          className="form-input"
-          style={{ maxWidth: '220px' }}
-          placeholder="🔍  Search candidates…"
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-        />
-        {!jdText && (
-          <span style={{ fontSize: '.75rem', color: '#F59E0B', fontWeight: 600 }}>
-            ⚠️ Paste JD on the left to enable question generation
-          </span>
-        )}
-        <span style={{ fontSize: '.8rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
-          {filtered.length} candidate{filtered.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      <div className="table-wrap">
-        <table className="rank-table">
-          <thead>
-            <tr>
-              <th onClick={() => toggleSort('rank')} style={{ width: 56 }}>
-                Rank <SortIcon k="rank" />
-              </th>
-              <th onClick={() => toggleSort('candidate_name')}>
-                Candidate <SortIcon k="candidate_name" />
-              </th>
-              <th onClick={() => toggleSort('overall_score')} style={{ width: 140 }}>
-                Score <SortIcon k="overall_score" />
-              </th>
-              <th onClick={() => toggleSort('total_professional_years')} style={{ width: 80 }}>
-                Exp <SortIcon k="total_professional_years" />
-              </th>
-              <th>Skills</th>
-              <th onClick={() => toggleSort('credibility_score')} style={{ width: 110 }}>
-                Credibility <SortIcon k="credibility_score" />
-              </th>
-              <th style={{ width: 240 }}>Actions</th>
-              <th style={{ width: 120 }}>Interview</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(r => (
-              <>
-                {/* ── Main candidate row ── */}
-                <tr key={r.id} style={rowStyle(r.workflow_status)}>
-                  <td><RankBadge rank={r.rank} /></td>
-
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: 'linear-gradient(135deg,var(--primary),var(--primary-mid))',
-                        color: 'white', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: '.7rem', fontWeight: 700, flexShrink: 0,
-                      }}>
-                        {initials(r.candidate_name)}
-                      </div>
-                      <div>
-                        <div className="cname">{r.candidate_name}</div>
-                        {r.candidate_email && <div className="cemail">{r.candidate_email}</div>}
-                        {r.status_note && (
-                          <div
-                            title={r.status_note}
-                            style={{ fontSize: '.68rem', color: 'var(--primary-light)', marginTop: 1,
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}
-                          >
-                            📝 {r.status_note}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-
-                  <td style={{ minWidth: 130 }}>
-                    <ScoreBar score={r.overall_score} />
-                  </td>
-
-                  <td style={{ fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>
-                    {r.total_professional_years?.toFixed(1) || '–'}
-                  </td>
-
-                  <td>
-                    <div className="skills-wrap">
-                      {(r.skills || []).slice(0, 3).map(s => (
-                        <SkillTag key={s} label={s} />
-                      ))}
-                      {(r.skills || []).length > 3 && (
-                        <span className="badge badge-gray">+{r.skills.length - 3}</span>
-                      )}
-                    </div>
-                  </td>
-
-                  <td>
-                    {r.flag_level ? (
-                      <CredibilityBadge
-                        flagLevel={r.flag_level}
-                        reason={r.flag_reason}
-                        score={r.credibility_score}
-                      />
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>—</span>
-                    )}
-                  </td>
-
-                  <td>
-                    <ActionButtons
-                      candidateId={r.candidate_id}
-                      initialStatus={r.workflow_status}
-                      initialNote={r.status_note || ''}
-                      onStatusChange={handleStatusChange}
-                    />
-                  </td>
-
-                  <td>
-                    <InterviewPanel
-                      candidateId={r.candidate_id}
-                      candidateName={r.candidate_name}
-                      jdText={jdText}
-                    />
-                  </td>
-                </tr>
-              </>
-            ))}
-          </tbody>
-        </table>
-
-        {filtered.length === 0 && (
-          <div className="empty-state" style={{ padding: '48px' }}>
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <h3>{workflowTab === 'all' ? 'No results yet' : `No ${workflowTab.replace('_', ' ')} candidates`}</h3>
-            <p>
-              {workflowTab === 'all'
-                ? 'Paste a job description and click "Rank Candidates" to see results.'
-                : 'Use the action buttons to assign candidates to this category.'}
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   )
 }
