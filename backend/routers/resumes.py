@@ -146,6 +146,74 @@ async def upload_resumes(
     return {"uploaded": len(created), "candidates": created}
 
 
+@router.get("/by-date", response_model=List[dict])
+def get_candidates_by_date(
+    job_role_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Return candidates grouped by their upload date (batch date).
+
+    Optionally filtered to a single job role via ?job_role_id=<id>.
+    Each group has the shape:
+      { date_label, date_iso, candidate_count, status_counts, candidates[] }
+    """
+    from datetime import date as dtdate
+    from collections import defaultdict
+
+    query = db.query(Candidate)
+    if job_role_id:
+        query = query.filter(Candidate.job_role_id == job_role_id)
+    candidates = query.order_by(Candidate.created_at.desc()).all()
+
+    # ── Group by date (UTC) ──────────────────────────────
+    today = dtdate.today()
+    groups: dict = defaultdict(list)
+    for c in candidates:
+        day = c.created_at.date() if c.created_at else today
+        groups[day].append(c)
+
+    result = []
+    for day in sorted(groups.keys(), reverse=True):
+        group_candidates = groups[day]
+
+        # Human-friendly label
+        delta = (today - day).days
+        if delta == 0:
+            label = "Today"
+        elif delta == 1:
+            label = "Yesterday"
+        else:
+            label = day.strftime("%B %d, %Y")
+
+        # Status counts for the badge summary
+        status_counts: dict = defaultdict(int)
+        for c in group_candidates:
+            status_counts[c.status] += 1
+
+        result.append({
+            "date_iso": day.isoformat(),
+            "date_label": label,
+            "candidate_count": len(group_candidates),
+            "status_counts": dict(status_counts),
+            "candidates": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "email": c.email,
+                    "file_name": c.file_name,
+                    "file_type": c.file_type,
+                    "status": c.status,
+                    "error_message": c.error_message,
+                    "job_role_id": c.job_role_id,
+                    "created_at": c.created_at,
+                }
+                for c in group_candidates
+            ],
+        })
+
+    return result
+
+
 @router.get("/{job_role_id}", response_model=List[dict])
 def get_candidates(job_role_id: int, db: Session = Depends(get_db)):
     candidates = (

@@ -785,3 +785,90 @@ body {
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .page-wrapper { padding: 16px; }
 }
+
+/* ── Group-By Toggle ──────────────────────────────────── */
+.group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.group-toggle-label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.group-toggle-pills {
+  display: flex;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.toggle-pill {
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: .8rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text-secondary);
+  background: transparent;
+  white-space: nowrap;
+}
+.toggle-pill:hover { color: var(--primary); background: rgba(30,58,95,.05); }
+.toggle-pill.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Batch Date Group ─────────────────────────────────── */
+.batch-group {
+  animation: fadeIn .3s ease;
+}
+.batch-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-mid) 100%);
+  border-radius: var(--radius);
+  color: white;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.batch-group-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.batch-icon {
+  width: 28px; height: 28px;
+  background: rgba(255,255,255,.15);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.batch-label {
+  font-size: .95rem;
+  font-weight: 700;
+  letter-spacing: -.2px;
+}
+.batch-count {
+  font-size: .75rem;
+  color: rgba(255,255,255,.65);
+  font-weight: 500;
+}
+.batch-group-right {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.batch-group-right .status-badge {
+  background: rgba(255,255,255,.18);
+  color: white;
+  border: 1px solid rgba(255,255,255,.25);
+}

@@ -26,7 +26,11 @@ export const resumesApi = {
       },
     }).then(r => r.data)
   },
-  listByJob:    (jobRoleId)     => api.get(`/resumes/${jobRoleId}`).then(r => r.data),
+  listByJob:    (jobRoleId)          => api.get(`/resumes/${jobRoleId}`).then(r => r.data),
+  listByDate:   (jobRoleId = null)   => {
+    const params = jobRoleId ? `?job_role_id=${jobRoleId}` : ''
+    return api.get(`/resumes/by-date${params}`).then(r => r.data)
+  },
   getCandidate: (candidateId)   => api.get(`/resumes/candidate/${candidateId}`).then(r => r.data),
   delete:       (candidateId)   => api.delete(`/resumes/${candidateId}`),
 }
