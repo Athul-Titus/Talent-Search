@@ -26,6 +26,7 @@ export const resumesApi = {
       },
     }).then(r => r.data)
   },
+  streamUrl:    (jobRoleId)          => `${baseURL}/resumes/stream/${jobRoleId}`,
   listByJob:    (jobRoleId)          => api.get(`/resumes/${jobRoleId}`).then(r => r.data),
   listByDate:   (jobRoleId = null)   => {
     const params = jobRoleId ? `?job_role_id=${jobRoleId}` : ''
@@ -33,6 +34,7 @@ export const resumesApi = {
   },
   getCandidate: (candidateId)   => api.get(`/resumes/candidate/${candidateId}`).then(r => r.data),
   delete:       (candidateId)   => api.delete(`/resumes/${candidateId}`),
+  viewResume:   (candidateId)   => api.get(`/resumes/view/${candidateId}`).then(r => r.data),
 }
 
 // ── Ranking ─────────────────────────────────────────────

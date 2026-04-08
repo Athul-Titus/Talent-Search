@@ -135,13 +135,45 @@ export default function Upload() {
     loadData()
   }, [selectedJob, groupBy])
 
-  // ── Poll every 4 seconds while in "role" mode (active uploads) ─
+  // ── High-Performance SSE (Server-Sent Events) Live Updates ──
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (groupBy === 'role' && selectedJob) loadCandidatesByRole()
-      if (groupBy === 'date')                loadCandidatesByDate()
-    }, 4000)
-    return () => clearInterval(interval)
+    if (groupBy !== 'role' || !selectedJob) return
+
+    const url = resumesApi.streamUrl(selectedJob)
+    const eventSource = new EventSource(url)
+
+    eventSource.onmessage = (event) => {
+      const statuses = JSON.parse(event.data)
+      let needsFullRefresh = false
+      
+      setCandidates(prev => {
+        let changed = false
+        const next = prev.map(c => {
+          const newStatus = statuses[String(c.id)]
+          if (newStatus && c.status !== newStatus) {
+            changed = true
+            // If they finish parsing, we must refresh to grab their extracted real Name & Email
+            if (newStatus === 'parsed' || newStatus === 'failed') {
+              needsFullRefresh = true
+            }
+            return { ...c, status: newStatus }
+          }
+          return c
+        })
+        return changed ? next : prev
+      })
+
+      if (needsFullRefresh) {
+        loadCandidatesByRole()
+      }
+    }
+
+    eventSource.onerror = () => {
+      // close on error to prevent infinite reconnection spam
+      eventSource.close()
+    }
+
+    return () => eventSource.close()
   }, [selectedJob, groupBy])
 
   async function loadData() {

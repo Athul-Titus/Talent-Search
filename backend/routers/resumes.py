@@ -1,6 +1,10 @@
 import os
 import threading
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
+import json
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db, SessionLocal
@@ -12,6 +16,9 @@ router = APIRouter(prefix="/api/resumes", tags=["resumes"])
 
 ALLOWED_TYPES = {".pdf", ".docx", ".doc", ".jpg", ".jpeg", ".png"}
 MAX_SIZE_MB = 20
+
+# Regulate concurrent NIM API calls to prevent crashes or rate-timing issues.
+parse_executor = ThreadPoolExecutor(max_workers=4)
 
 
 def _background_parse(candidate_id: int):
@@ -162,13 +169,8 @@ async def upload_resumes(
         db.commit()
         db.refresh(candidate)
 
-        # Kick off background parse thread
-        t = threading.Thread(
-            target=_run_parse,
-            args=(candidate.id, file_bytes, upload.filename),
-            daemon=True,
-        )
-        t.start()
+        # Queue into our thread pool (up to 4 active, rest wait gracefully)
+        parse_executor.submit(_run_parse, candidate.id, file_bytes, upload.filename)
 
         created.append({
             "id": candidate.id,
@@ -177,6 +179,31 @@ async def upload_resumes(
         })
 
     return {"uploaded": len(created), "candidates": created}
+
+
+@router.get("/stream/{job_role_id}")
+async def stream_candidate_status(job_role_id: int, request: Request, db: Session = Depends(get_db)):
+    """Server-Sent Events (SSE) endpoint to stream real-time parsing status changes."""
+    async def event_generator():
+        last_states = {}
+        while True:
+            # Check if client disconnected
+            if await request.is_disconnected():
+                break
+            
+            # Fetch very lightweight status map from SQLite
+            # This is 1000x faster than downloading full JSON profiles
+            cands = db.query(Candidate.id, Candidate.status).filter(Candidate.job_role_id == job_role_id).all()
+            current_states = {str(c[0]): c[1] for c in cands}
+            
+            # Only broadcast if a candidate changed status!
+            if current_states != last_states:
+                last_states = current_states
+                yield f"data: {json.dumps(current_states)}\\n\\n"
+            
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.get("/by-date", response_model=List[dict])
@@ -287,6 +314,27 @@ def get_candidate(candidate_id: int, db: Session = Depends(get_db)):
         "status": c.status,
         "error_message": c.error_message,
         "parsed_profile": c.parsed_profile,
+        "created_at": c.created_at,
+    }
+
+
+@router.get("/view/{candidate_id}", response_model=dict)
+def view_resume(candidate_id: int, db: Session = Depends(get_db)):
+    """Return the full parsed profile + raw text for in-app resume viewer."""
+    c = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    return {
+        "id": c.id,
+        "name": c.name,
+        "email": c.email,
+        "phone": c.phone,
+        "file_name": c.file_name,
+        "file_type": c.file_type,
+        "raw_text": c.raw_text,
+        "parsed_profile": c.parsed_profile,
+        "credibility_score": c.credibility_score,
+        "flag_level": c.flag_level,
         "created_at": c.created_at,
     }
 

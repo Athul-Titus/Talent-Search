@@ -7,6 +7,7 @@ import WorkflowFilterTabs from './WorkflowFilterTabs'
 import InterviewPanel from './InterviewPanel'
 import EmailDrafterModal from './EmailDrafterModal'
 import DossierTemplate from './DossierTemplate'
+import ResumeViewerModal from './ResumeViewerModal'
 import { exportToPdf } from '../utils/pdfExport'
 
 function initials(name = '') {
@@ -36,6 +37,7 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
   // One floating interview panel open at a time
   const [interviewCandidate, setInterviewCandidate] = useState(null) // { id, name }
   const [emailCandidate, setEmailCandidate] = useState(null) // { id, name, email, intent }
+  const [resumeCandidate, setResumeCandidate] = useState(null) // { id, name }
 
   // PDF Export
   const [exportingCandidate, setExportingCandidate] = useState(null)
@@ -203,60 +205,71 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
                 </td>
 
                 {/* Actions + 🎤 in one cell */}
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                    <ActionButtons
-                      candidateId={r.candidate_id}
-                      initialStatus={r.workflow_status}
-                      initialNote={r.status_note || ''}
-                      onStatusChange={handleStatusChange}
-                    />
-                    {/* visual divider */}
-                    <span style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0, margin: '0 2px' }} />
-                    {/* 🎤 Interview trigger button */}
-                    <button
-                      className={`action-btn interview-btn${interviewCandidate?.id === r.candidate_id ? ' interview-btn-active' : ''}`}
-                      title={jdText ? 'Generate AI interview questions' : 'Paste the JD first to enable this'}
-                      onClick={() => {
-                        setInterviewCandidate(
-                          interviewCandidate?.id === r.candidate_id
-                            ? null
-                            : { id: r.candidate_id, name: r.candidate_name }
-                        )
-                      }}
-                    >
-                      🎤 Questions
-                    </button>
-                    {/* 📨 Automated Email Drafter (only if shortlisted or rejected) */}
-                    {(getStatus(r) === 'shortlisted' || getStatus(r) === 'rejected') && (
+                <td style={{ verticalAlign: 'top' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                      <ActionButtons
+                        candidateId={r.candidate_id}
+                        initialStatus={r.workflow_status}
+                        initialNote={r.status_note || ''}
+                        onStatusChange={handleStatusChange}
+                      />
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.03)', width: 'fit-content' }}>
                       <button
-                        className="action-btn"
-                        style={{ padding: '4px 8px', fontSize: '.75rem', fontWeight: 600, color: 'var(--primary-light)', borderColor: 'rgba(212,175,55,0.4)', background: 'rgba(212,175,55,0.1)' }}
-                        title={jdText ? 'Draft personalized email with AI' : 'Paste JD to draft email'}
+                        className={`action-btn interview-btn${interviewCandidate?.id === r.candidate_id ? ' interview-btn-active' : ''}`}
+                        style={{ border: 'none', background: interviewCandidate?.id === r.candidate_id ? 'var(--primary)' : 'rgba(212,175,55,0.1)', color: interviewCandidate?.id === r.candidate_id ? '#000' : 'var(--primary)', padding: '6px 12px' }}
+                        title={jdText ? 'Generate AI interview questions' : 'Paste the JD first to enable this'}
                         onClick={() => {
-                          if (jdText) {
-                            setEmailCandidate({
-                              id: r.candidate_id,
-                              name: isBlindMode ? `Candidate #${String(r.candidate_id).padStart(4, '0')}` : r.candidate_name,
-                              email: isBlindMode ? 'Hidden' : r.candidate_email,
-                              intent: getStatus(r) === 'shortlisted' ? 'shortlist' : 'reject'
-                            })
-                          }
+                          setInterviewCandidate(
+                            interviewCandidate?.id === r.candidate_id
+                              ? null
+                              : { id: r.candidate_id, name: r.candidate_name }
+                          )
                         }}
                       >
-                        📧 Draft Email
+                        🎤 Questions
                       </button>
-                    )}
-                    {/* 📄 Export PDF Dossier */}
-                    <button
-                      className="action-btn"
-                      style={{ padding: '4px 8px', fontSize: '.75rem', fontWeight: 600, color: '#e5e7eb', borderColor: '#4b5563', background: 'rgba(255,255,255,0.05)' }}
-                      title="Download PDF Dossier"
-                      disabled={exportLoadingId === r.candidate_id}
-                      onClick={() => triggerExport(r)}
-                    >
-                      {exportLoadingId === r.candidate_id ? '⏳ Exporting...' : '📄 PDF'}
-                    </button>
+                      
+                      {(getStatus(r) === 'shortlisted' || getStatus(r) === 'rejected') && (
+                        <button
+                          className="action-btn"
+                          style={{ padding: '6px 12px', border: 'none', color: 'var(--primary-light)', background: 'rgba(255,255,255,0.05)' }}
+                          title={jdText ? 'Draft personalized email with AI' : 'Paste JD to draft email'}
+                          onClick={() => {
+                            if (jdText) {
+                              setEmailCandidate({
+                                id: r.candidate_id,
+                                name: isBlindMode ? `Candidate #${String(r.candidate_id).padStart(4, '0')}` : r.candidate_name,
+                                email: isBlindMode ? 'Hidden' : r.candidate_email,
+                                intent: getStatus(r) === 'shortlisted' ? 'shortlist' : 'reject'
+                              })
+                            }
+                          }}
+                        >
+                          📧 Email
+                        </button>
+                      )}
+                      
+                      <button
+                        className="action-btn"
+                        style={{ padding: '6px 12px', border: 'none', color: '#60A5FA', background: 'rgba(59,130,246,0.08)' }}
+                        title="View full resume"
+                        onClick={() => setResumeCandidate({ id: r.candidate_id, name: r.candidate_name })}
+                      >
+                        👁 Resume
+                      </button>
+                      <button
+                        className="action-btn"
+                        style={{ padding: '6px 12px', border: 'none', color: '#e5e7eb', background: 'rgba(255,255,255,0.05)' }}
+                        title="Download PDF Dossier"
+                        disabled={exportLoadingId === r.candidate_id}
+                        onClick={() => triggerExport(r)}
+                      >
+                        {exportLoadingId === r.candidate_id ? '⏳' : '📄'} PDF
+                      </button>
+                    </div>
                   </div>
                 </td>
 
@@ -301,6 +314,16 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
           jdText={jdText}
           intent={emailCandidate.intent}
           onClose={() => setEmailCandidate(null)}
+        />
+      )}
+
+      {/* ── Resume Viewer Modal ── */}
+      {resumeCandidate && (
+        <ResumeViewerModal
+          candidateId={resumeCandidate.id}
+          candidateName={isBlindMode ? `Candidate #${String(resumeCandidate.id).padStart(4, '0')}` : resumeCandidate.name}
+          isBlindMode={isBlindMode}
+          onClose={() => setResumeCandidate(null)}
         />
       )}
 
