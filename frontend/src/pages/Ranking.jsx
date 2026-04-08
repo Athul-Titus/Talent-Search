@@ -15,6 +15,7 @@ export default function Ranking() {
   const [loading, setLoading]       = useState(false)
   const [polling, setPolling]       = useState(false)
   const [step, setStep]             = useState('')  // status message
+  const [isBlindMode, setIsBlindMode] = useState(false)
   const pollRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -101,7 +102,22 @@ export default function Ranking() {
     <div className="page-wrapper" style={{ animation:'fadeIn .4s ease' }}>
       <div className="page-header">
         <div>
-          <h2>Talent Ranking</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <h2>Talent Ranking</h2>
+            {/* ── Premium Toggle Switch (Bias-Free Mode) ── */}
+            <div 
+              className={`premium-toggle ${isBlindMode ? 'active' : ''}`}
+              onClick={() => setIsBlindMode(!isBlindMode)}
+              title="Hide PII to prevent unconscious bias"
+            >
+              <div className="toggle-track">
+                <div className="toggle-thumb" />
+              </div>
+              <span className="premium-toggle-label">
+                {isBlindMode ? 'Blind Mode Active' : 'Enable Blind Mode'}
+              </span>
+            </div>
+          </div>
           <p>Paste a Job Description to semantically rank all parsed candidates</p>
         </div>
         <button className="btn btn-ghost" onClick={() => navigate('/dashboard')}>← Dashboard</button>
@@ -232,7 +248,7 @@ export default function Ranking() {
                 </button>
               </div>
 
-              <RankTable results={results} jdText={jdText} />
+              <RankTable results={results} jdText={jdText} isBlindMode={isBlindMode} />
 
               {/* Top 5 AI Justifications */}
               {top5.length > 0 && (
@@ -241,7 +257,7 @@ export default function Ranking() {
                     🤖 AI Justifications — Top {top5.length} Candidates
                   </h3>
                   {top5.map((r, i) => (
-                    <JustificationCard key={r.id} result={r} rank={i + 1} />
+                    <JustificationCard key={r.id} result={r} rank={i + 1} isBlindMode={isBlindMode} />
                   ))}
                 </div>
               )}

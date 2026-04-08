@@ -24,7 +24,7 @@ function rowStyle(workflowStatus) {
   }
 }
 
-export default function RankTable({ results: initialResults, jdText = '' }) {
+export default function RankTable({ results: initialResults, jdText = '', isBlindMode = false }) {
   const [sortKey, setSortKey]         = useState('rank')
   const [sortDir, setSortDir]         = useState('asc')
   const [filter, setFilter]           = useState('')
@@ -129,11 +129,15 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
                       color: 'white', display: 'flex', alignItems: 'center',
                       justifyContent: 'center', fontSize: '.65rem', fontWeight: 700, flexShrink: 0,
                     }}>
-                      {initials(r.candidate_name)}
+                      {isBlindMode ? '🔒' : initials(r.candidate_name)}
                     </div>
                     <div>
-                      <div className="cname">{r.candidate_name}</div>
-                      {r.candidate_email && <div className="cemail">{r.candidate_email}</div>}
+                      <div className="cname">
+                        {isBlindMode ? `Candidate #${String(r.candidate_id).padStart(4, '0')}` : r.candidate_name}
+                      </div>
+                      {!isBlindMode && r.candidate_email && (
+                        <div className="cemail">{r.candidate_email}</div>
+                      )}
                       {r.status_note && (
                         <div title={r.status_note} style={{
                           fontSize: '.63rem', color: 'var(--primary-light)', marginTop: 1,
@@ -225,7 +229,7 @@ export default function RankTable({ results: initialResults, jdText = '' }) {
         <InterviewPanel
           key={interviewCandidate.id}
           candidateId={interviewCandidate.id}
-          candidateName={interviewCandidate.name}
+          candidateName={isBlindMode ? `Candidate #${String(interviewCandidate.id).padStart(4, '0')}` : interviewCandidate.name}
           jdText={jdText}
           onClose={() => setInterviewCandidate(null)}
         />

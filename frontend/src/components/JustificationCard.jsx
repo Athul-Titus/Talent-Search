@@ -7,13 +7,25 @@ function initials(name = '') {
   return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase() || '?'
 }
 
-export default function JustificationCard({ result, rank }) {
+export default function JustificationCard({ result, rank, isBlindMode = false }) {
   const rankColors = ['#FBBF24','#9CA3AF','#CD7C45']
   const rankColor  = rankColors[rank - 1] || 'var(--primary)'
 
   const isSuspicious = result.flag_level === 'High Suspicion'
   const isModerate   = result.flag_level === 'Moderate'
   const showWarning  = isSuspicious || isModerate
+
+  const getSanitizedJustification = () => {
+    if (!result.justification) return null
+    if (!isBlindMode) return result.justification
+    
+    // Mask first name
+    const firstName = result.candidate_name?.split(' ')[0]
+    if (!firstName || firstName.length < 2) return result.justification
+    
+    const regex = new RegExp(`\\b${firstName}\\b`, 'gi')
+    return result.justification.replace(regex, 'The candidate')
+  }
 
   return (
     <div
@@ -27,10 +39,12 @@ export default function JustificationCard({ result, rank }) {
           {/* ── Header ── */}
           <div className="jc-header" style={{ marginBottom: '20px' }}>
             <div className="jc-avatar" style={{ background: `linear-gradient(135deg, ${rankColor}, rgba(212,175,55,0.4))` }}>
-              {initials(result.candidate_name)}
+              {isBlindMode ? '🔒' : initials(result.candidate_name)}
             </div>
             <div>
-              <div className="jc-name" style={{ fontSize: '1.05rem', color: 'var(--primary-light)' }}>{result.candidate_name}</div>
+              <div className="jc-name" style={{ fontSize: '1.05rem', color: 'var(--primary-light)' }}>
+                {isBlindMode ? `Candidate #${String(result.candidate_id).padStart(4, '0')}` : result.candidate_name}
+              </div>
               <div style={{ fontSize:'.8rem', color:'var(--text-muted)', fontWeight: 600 }}>
                 #{rank} · {result.total_professional_years?.toFixed(1) || '–'} yrs experience
               </div>
@@ -66,7 +80,7 @@ export default function JustificationCard({ result, rank }) {
           {result.justification && (
             <p className="jc-text" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
               <span style={{ color:'var(--primary)', fontWeight:700, display: 'block', marginBottom: '4px' }}>🤖 AI Summary </span>
-              {result.justification}
+              {getSanitizedJustification()}
             </p>
           )}
 
