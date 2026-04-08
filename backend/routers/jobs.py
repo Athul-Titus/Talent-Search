@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
 from models import JobRole, Candidate, RankingResult
-from schemas import JobRoleCreate, JobRoleResponse
+from schemas import JobRoleCreate, JobRoleResponse, JobRoleUpdate
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -98,6 +98,24 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(JobRole).filter(JobRole.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job role not found")
+    return build_job_response(job)
+
+
+@router.patch("/{job_id}", response_model=dict)
+def update_job(job_id: int, payload: JobRoleUpdate, db: Session = Depends(get_db)):
+    job = db.query(JobRole).filter(JobRole.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job role not found")
+    
+    if payload.title is not None:
+        job.title = payload.title
+    if payload.department is not None:
+        job.department = payload.department
+    if payload.description is not None:
+        job.description = payload.description
+
+    db.commit()
+    db.refresh(job)
     return build_job_response(job)
 
 

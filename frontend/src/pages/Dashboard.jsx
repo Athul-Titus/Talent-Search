@@ -78,13 +78,37 @@ function KpiCard({ label, rawValue, suffix = '', prefix = '', gradientFrom, icon
   )
 }
 
-function JobCard({ job, onUpload, onRank }) {
+function JobCard({ job, onUpload, onRank, onEdit, onDelete }) {
   return (
     <div className="job-card">
       <div className="job-card-header">
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
           <h3>{job.title}</h3>
-          <span className="dept-badge">{job.department}</span>
+          <div style={{ display:'flex', gap: '8px', alignItems: 'center' }}>
+            <span className="dept-badge">{job.department}</span>
+            <button 
+              onClick={onEdit} 
+              style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', padding:'4px', transition:'var(--transition)' }}
+              title="Edit Role"
+              onMouseOver={e => e.currentTarget.style.color = 'var(--text)'}
+              onMouseOut={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+            <button 
+              onClick={onDelete} 
+              style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', padding:'4px', transition:'var(--transition)' }}
+              title="Delete Role"
+              onMouseOver={e => e.currentTarget.style.color = 'var(--danger)'}
+              onMouseOut={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         </div>
         {job.description && (
           <p style={{ fontSize:'.8rem', color:'rgba(255,255,255,.65)', lineHeight:1.5, marginTop:4 }}>
@@ -162,6 +186,7 @@ export default function Dashboard() {
   const [jobs, setJobs]         = useState([])
   const [loading, setLoading]   = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [editingJob, setEditingJob] = useState(null)
 
   async function loadJobs() {
     try {
@@ -175,6 +200,32 @@ export default function Dashboard() {
   }
 
   useEffect(() => { loadJobs() }, [])
+
+  const handleDeleteJob = async (id, title) => {
+    if (!window.confirm(`Are you sure you want to delete the role "${title}"? All uploaded candidates and rankings associated with this role will be permanently deleted.`)) return
+    
+    try {
+      await jobsApi.delete(id)
+      setJobs(jobs => jobs.filter(j => j.id !== id))
+      window.dispatchEvent(new CustomEvent('cymonic-toast', { detail: { message: `Role "${title}" deleted`, type: 'success' } }))
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('cymonic-toast', { detail: { message: `Failed to delete role`, type: 'error' } }))
+    }
+  }
+
+  const handleEditJob = (job) => {
+    setEditingJob(job)
+    setShowModal(true)
+  }
+
+  const handleModalClose = () => {
+    setShowModal(false)
+    setEditingJob(null)
+  }
+
+  const handleJobSaved = () => {
+    loadJobs()
+  }
 
   const totalCandidates  = jobs.reduce((s, j) => s + (j.candidate_count  || 0), 0)
   const totalParsed       = jobs.reduce((s, j) => s + (j.parsed_count     || 0), 0)
@@ -245,6 +296,8 @@ export default function Dashboard() {
               job={job}
               onUpload={id => navigate(`/upload/${id}`)}
               onRank={id => navigate(`/ranking/${id}`)}
+              onEdit={() => handleEditJob(job)}
+              onDelete={() => handleDeleteJob(job.id, job.title)}
             />
           ))}
         </div>
@@ -252,8 +305,9 @@ export default function Dashboard() {
 
       {showModal && (
         <CreateJobModal
-          onClose={() => setShowModal(false)}
-          onCreated={(job) => { setJobs(prev => [job, ...prev]) }}
+          onClose={handleModalClose}
+          onCreated={handleJobSaved}
+          initialJob={editingJob}
         />
       )}
     </div>

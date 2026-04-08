@@ -49,6 +49,7 @@ export const jobsApi = {
   list:   ()          => api.get('/jobs/').then(r => r.data),
   get:    (id)        => api.get(`/jobs/${id}`).then(r => r.data),
   create: (payload)   => api.post('/jobs/', payload).then(r => r.data),
+  update: (id, payload) => api.patch(`/jobs/${id}`, payload).then(r => r.data),
   delete: (id)        => api.delete(`/jobs/${id}`),
 }
 

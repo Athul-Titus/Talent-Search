@@ -10,6 +10,10 @@ class JobRoleCreate(BaseModel):
     department: Optional[str] = "General"
     description: Optional[str] = ""
 
+class JobRoleUpdate(BaseModel):
+    title: Optional[str] = None
+    department: Optional[str] = None
+    description: Optional[str] = None
 
 class JobRoleResponse(BaseModel):
     id: int

@@ -10,6 +10,7 @@ import DossierTemplate from './DossierTemplate'
 import ResumeViewerModal from './ResumeViewerModal'
 import { exportToPdf } from '../utils/pdfExport'
 import { useToast } from '../contexts/ToastContext'
+import { resumesApi } from '../api/client'
 
 function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
@@ -39,6 +40,7 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
   const [interviewCandidate, setInterviewCandidate] = useState(null) // { id, name }
   const [emailCandidate, setEmailCandidate] = useState(null) // { id, name, email, intent }
   const [resumeCandidate, setResumeCandidate] = useState(null) // { id, name }
+  const [deletedIds, setDeletedIds] = useState(new Set())
 
   // PDF Export
   const [exportingCandidate, setExportingCandidate] = useState(null)
@@ -76,10 +78,25 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
     setLocalStatuses(prev => ({ ...prev, [candidateId]: newStatus }))
   }
 
-  const results = initialResults.map(r => ({
-    ...r,
-    workflow_status: getStatus(r),
-  }))
+  const results = initialResults
+    .filter(r => !deletedIds.has(r.candidate_id))
+    .map(r => ({
+      ...r,
+      workflow_status: getStatus(r),
+    }))
+
+  const handleDeleteCandidate = async (candidate_id, name) => {
+    if (!window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) return
+    
+    try {
+      await resumesApi.delete(candidate_id)
+      setDeletedIds(prev => new Set([...prev, candidate_id]))
+      // window dispatch handles it across components if any, but toast is also injected
+      toast.success(`Candidate ${name} deleted`)
+    } catch (e) {
+      toast.error('Failed to delete candidate')
+    }
+  }
 
   function toggleSort(key) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -274,6 +291,15 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
                         onClick={() => triggerExport(r)}
                       >
                         {exportLoadingId === r.candidate_id ? '⏳' : '📄'} PDF
+                      </button>
+                      
+                      <button
+                        className="action-btn"
+                        style={{ padding: '6px 12px', border: 'none', color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.08)' }}
+                        title="Delete Candidate"
+                        onClick={() => handleDeleteCandidate(r.candidate_id, r.candidate_name)}
+                      >
+                        ❌
                       </button>
                     </div>
                   </div>
