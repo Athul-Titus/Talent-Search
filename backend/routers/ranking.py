@@ -126,6 +126,15 @@ def get_rankings(job_role_id: int, db: Session = Depends(get_db)):
             "skills": (profile.get("skills") or [])[:6],
             "total_professional_years": profile.get("total_professional_years", 0),
             "domain_tags": profile.get("domain_tags", []),
+            # ── Credibility / Anti-Keyword-Stuffing ─────────
+            "credibility_score": c.credibility_score if c else None,
+            "flag_level":        c.flag_level if c else None,
+            "stuffed_keywords":  c.stuffed_keywords or [] if c else [],
+            "flag_reason":       c.flag_reason if c else None,
+            # ── Recruiter Workflow ───────────────────────────
+            "workflow_status":   c.workflow_status or "pending" if c else "pending",
+            "status_note":       c.status_note if c else None,
+            "status_updated_at": c.status_updated_at if c else None,
             "created_at": r.created_at,
         })
     return output

@@ -10,15 +10,27 @@ router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 def build_job_response(job: JobRole) -> dict:
     parsed_candidates = [c for c in job.candidates if c.status == "parsed"]
+
+    # ── Workflow counts ───────────────────────────────────
+    shortlisted_count = sum(1 for c in job.candidates if c.workflow_status == "shortlisted")
+    on_hold_count     = sum(1 for c in job.candidates if c.workflow_status == "on_hold")
+    rejected_count    = sum(1 for c in job.candidates if c.workflow_status == "rejected")
+
+    # ── Top candidates (prefer shortlisted, fall back to highest scored) ──
     top_candidates = []
-    # Pull top candidates from latest ranking results if available
     scored = []
     for c in parsed_candidates:
         if c.ranking_results:
             latest = max(c.ranking_results, key=lambda r: r.created_at)
             scored.append((latest.overall_score, c))
     scored.sort(key=lambda x: x[0], reverse=True)
-    for score, c in scored[:3]:
+
+    # Shortlisted first, then top-scored
+    shortlisted = [item for item in scored if item[1].workflow_status == "shortlisted"]
+    others      = [item for item in scored if item[1].workflow_status != "shortlisted"]
+    ordered     = (shortlisted + others)[:3]
+
+    for score, c in ordered:
         profile = c.parsed_profile or {}
         top_candidates.append({
             "id": c.id,
@@ -26,6 +38,7 @@ def build_job_response(job: JobRole) -> dict:
             "score": score,
             "skills": (profile.get("skills") or [])[:4],
             "total_professional_years": profile.get("total_professional_years", 0),
+            "workflow_status": c.workflow_status or "pending",
         })
 
     return {
@@ -37,6 +50,9 @@ def build_job_response(job: JobRole) -> dict:
         "created_at": job.created_at,
         "candidate_count": len(job.candidates),
         "parsed_count": len(parsed_candidates),
+        "shortlisted_count": shortlisted_count,
+        "on_hold_count": on_hold_count,
+        "rejected_count": rejected_count,
         "top_candidates": top_candidates,
     }
 

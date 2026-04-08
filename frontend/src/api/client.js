@@ -42,3 +42,15 @@ export const rankingApi = {
   getResults:(jobRoleId) => api.get(`/ranking/${jobRoleId}`).then(r => r.data),
   getStatus: (jobRoleId) => api.get(`/ranking/status/${jobRoleId}`).then(r => r.data),
 }
+
+// ── Candidates (workflow) ────────────────────────────────
+export const candidatesApi = {
+  updateStatus: (candidateId, status, note = undefined) =>
+    api.patch(`/candidates/${candidateId}/status`, { status, note }).then(r => r.data),
+  getByRole: (roleId, status = null) => {
+    const params = status ? `?status=${status}` : ''
+    return api.get(`/candidates/by-role/${roleId}${params}`).then(r => r.data)
+  },
+  workflowSummary: (roleId) =>
+    api.get(`/candidates/workflow-summary/${roleId}`).then(r => r.data),
+}

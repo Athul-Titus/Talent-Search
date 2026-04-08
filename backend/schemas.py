@@ -73,3 +73,10 @@ class RankingResultResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ── Workflow Status ────────────────────────────────────────────────────────────
+
+class WorkflowStatusUpdate(BaseModel):
+    status: str          # "pending" | "shortlisted" | "on_hold" | "rejected"
+    note: Optional[str] = None   # Recruiter note (optional)

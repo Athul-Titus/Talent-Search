@@ -38,6 +38,15 @@ class Candidate(Base):
     parsed_profile = Column(JSON, nullable=True)
     status = Column(String(50), default="uploading")  # uploading, parsing, parsed, failed
     error_message = Column(Text, nullable=True)
+    # ── Anti-Keyword-Stuffing fields ──────────────────────
+    credibility_score   = Column(Float, nullable=True)
+    flag_level          = Column(String(50), nullable=True)
+    stuffed_keywords    = Column(JSON, nullable=True)
+    flag_reason         = Column(Text, nullable=True)
+    # ── Recruiter Workflow fields ─────────────────────────
+    workflow_status     = Column(String(50), default="pending")  # pending|shortlisted|on_hold|rejected
+    status_updated_at   = Column(DateTime, nullable=True)
+    status_note         = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     job_role = relationship("JobRole", back_populates="candidates")

@@ -6,10 +6,31 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import engine, Base
-from routers import jobs, resumes, ranking
+from routers import jobs, resumes, ranking, candidates
 
 # Create all tables on startup
 Base.metadata.create_all(bind=engine)
+
+# ── SQLite migration: add credibility columns if they don't exist ──────────
+from sqlalchemy import text
+_MIGRATION_COLUMNS = [
+    ("credibility_score",  "REAL"),
+    ("flag_level",         "VARCHAR(50)"),
+    ("stuffed_keywords",   "JSON"),
+    ("flag_reason",        "TEXT"),
+    # Recruiter workflow
+    ("workflow_status",    "VARCHAR(50) DEFAULT 'pending'"),
+    ("status_updated_at",  "DATETIME"),
+    ("status_note",        "TEXT"),
+]
+with engine.connect() as _conn:
+    for _col, _type in _MIGRATION_COLUMNS:
+        try:
+            _conn.execute(text(f"ALTER TABLE candidates ADD COLUMN {_col} {_type}"))
+            _conn.commit()
+        except Exception:
+            pass  # Column already exists — safe to ignore
+
 
 app = FastAPI(
     title="Smart Talent Selection Engine",
@@ -35,6 +56,7 @@ app.add_middleware(
 app.include_router(jobs.router)
 app.include_router(resumes.router)
 app.include_router(ranking.router)
+app.include_router(candidates.router)
 
 
 @app.get("/")

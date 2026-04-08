@@ -872,3 +872,170 @@ body {
   color: white;
   border: 1px solid rgba(255,255,255,.25);
 }
+
+/* ── Fraud / Keyword-Stuffing Warning Banner ──────────── */
+.fraud-banner {
+  margin-top: 14px;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  border: 1.5px solid;
+  animation: fadeIn .25s ease;
+}
+.fraud-high {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+.fraud-moderate {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.fraud-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.fraud-banner-icon { font-size: 1rem; flex-shrink: 0; }
+.fraud-banner-title {
+  font-size: .85rem;
+  font-weight: 700;
+  flex: 1;
+}
+.fraud-high   .fraud-banner-title { color: #991B1B; }
+.fraud-moderate .fraud-banner-title { color: #92400E; }
+
+.fraud-reason {
+  font-size: .8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.fraud-keywords { margin-top: 8px; }
+.fraud-keywords-label {
+  display: block;
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+}
+.fraud-keywords-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.fraud-keyword-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: .7rem;
+  font-weight: 600;
+  background: rgba(239, 68, 68, 0.12);
+  color: #991B1B;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  white-space: nowrap;
+}
+
+/* ── Workflow Action Buttons ──────────────────────────── */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s ease;
+  white-space: nowrap;
+  letter-spacing: .2px;
+}
+.action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+.action-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.note-btn { padding: 5px 8px; font-size: .85rem; }
+
+/* ── Workflow Filter Tabs ─────────────────────────────── */
+.workflow-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 4px;
+}
+.workflow-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-bottom: -2px;
+  white-space: nowrap;
+}
+.workflow-tab:hover { color: var(--primary); border-bottom-color: var(--primary-light); }
+.workflow-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+.workflow-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: .68rem;
+  font-weight: 700;
+  background: var(--bg);
+  color: var(--text-secondary);
+}
+
+/* ── Note Popover ─────────────────────────────────────── */
+.note-popover {
+  position: absolute;
+  z-index: 200;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  width: 300px;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp .15s ease;
+}
+/* Make the table td that holds action buttons position:relative */
+.rank-table td:last-child { position: relative; }
+
+.note-textarea {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: .82rem;
+  font-family: inherit;
+  resize: vertical;
+  color: var(--text);
+  background: var(--bg);
+  transition: var(--transition);
+}
+.note-textarea:focus {
+  outline: none;
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 3px rgba(74,144,196,.15);
+}
+
+

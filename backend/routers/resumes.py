@@ -55,7 +55,7 @@ _pending_bytes: dict = {}
 
 
 def _run_parse(candidate_id: int, file_bytes: bytes, file_name: str):
-    """Thread target: parse file and update DB."""
+    """Thread target: parse file → AI profile → credibility check → update DB."""
     db = SessionLocal()
     try:
         candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
@@ -64,16 +64,49 @@ def _run_parse(candidate_id: int, file_bytes: bytes, file_name: str):
         candidate.status = "parsing"
         db.commit()
 
+        # ① Extract raw text
         raw_text = parse_file(file_bytes, file_name)
         candidate.raw_text = raw_text
 
+        # ② AI profile extraction
         profile = parse_resume(raw_text)
         candidate.parsed_profile = profile
-        candidate.name = profile.get("name") or "Unknown"
+        candidate.name  = profile.get("name") or "Unknown"
         candidate.email = profile.get("email")
         candidate.phone = profile.get("phone")
+
+        # ③ Credibility detection — algorithmic (fast, always runs)
+        from services.fraud_detector import algorithmic_credibility
+        algo_result = algorithmic_credibility(profile, raw_text)
+
+        # ④ AI credibility check (deeper, may fail — falls back to algo)
+        try:
+            from services.ai_engine import analyze_credibility
+            ai_cred = analyze_credibility(profile)
+
+            # Merge: use whichever flags MORE strongly (lower score = more suspicious)
+            if ai_cred["credibility_score"] <= algo_result["credibility_score"]:
+                cred = ai_cred
+            else:
+                cred = algo_result
+                # But merge in AI's stuffed_keywords if they add information
+                merged_keywords = list(
+                    set(algo_result.get("stuffed_keywords", []))
+                    | set(ai_cred.get("stuffed_keywords", []))
+                )
+                cred["stuffed_keywords"] = merged_keywords[:12]
+        except Exception:
+            cred = algo_result
+
+        # ⑤ Persist credibility data
+        candidate.credibility_score  = cred["credibility_score"]
+        candidate.flag_level         = cred["flag_level"]
+        candidate.stuffed_keywords   = cred["stuffed_keywords"]
+        candidate.flag_reason        = cred["reason"]
+
         candidate.status = "parsed"
         db.commit()
+
     except Exception as e:
         try:
             candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
