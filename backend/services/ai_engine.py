@@ -258,3 +258,63 @@ def generate_interview_questions(parsed_profile: dict, jd_text: str) -> dict:
     return {"questions": questions}
 
 
+# ── Workflow Email Drafter ────────────────────────────────────────────────────
+
+EMAIL_PROMPT = """You are a senior technical recruiter drafting a highly professional workflow email to a candidate.
+Intent: {intent}
+
+Job Description context:
+{jd}
+
+Candidate Profile (JSON):
+{profile}
+
+RULES for 'shortlist' intent:
+1. Write a warm, enthusiastic email offering an interview.
+2. Specifically call out ONE impressive skill or experience from their resume that matched the JD, proving this isn't an automated blast.
+3. Ask for their availability for a 30-minute introductory sync next week.
+4. Keep it concise (under 150 words).
+
+RULES for 'reject' intent:
+1. Write a polite, respectful rejection email.
+2. Frame it as "moving forward with candidates whose experience more closely aligns with our specific technical stack."
+3. Keep it brief, standard, and legally safe (under 100 words).
+
+Do NOT generate placeholders like [Company Name] or [Your Name]. Use "Cymonic Talent Team" as the sender. Address the candidate by their first name.
+
+Return ONLY valid JSON in this format:
+{{
+  "subject": "The email subject line here",
+  "body": "The complete text of the email here, using \\n for line breaks."
+}}"""
+
+def generate_workflow_email(parsed_profile: dict, jd_text: str, intent: str) -> dict:
+    """
+    Generate an ultra-personalized Shortlist or Rejection email.
+    """
+    profile_str = json.dumps(parsed_profile, indent=2)[:4000]
+    prompt = EMAIL_PROMPT.format(
+        intent=intent.upper(),
+        jd=jd_text[:3000],
+        profile=profile_str,
+    )
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.4,
+        max_tokens=600,
+    )
+    raw = _clean_json(response.choices[0].message.content)
+    try:
+        data = json.loads(raw)
+        return {
+            "subject": data.get("subject", "Update on your application"),
+            "body": data.get("body", "Please contact us for an update on your application.")
+        }
+    except Exception:
+        return {
+            "subject": "Update on your application",
+            "body": "Thank you for applying. Please let us know when you are available to speak."
+        }
+

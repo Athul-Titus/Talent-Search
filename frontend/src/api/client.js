@@ -55,4 +55,6 @@ export const candidatesApi = {
     api.get(`/candidates/workflow-summary/${roleId}`).then(r => r.data),
   generateQuestions: (candidateId, jdText) =>
     api.post(`/candidates/${candidateId}/interview-questions`, { jd_text: jdText }).then(r => r.data),
+  generateEmail: (candidateId, jdText, intent) =>
+    api.post(`/candidates/${candidateId}/generate-email`, { jd_text: jdText, intent }).then(r => r.data),
 }

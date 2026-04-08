@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 from database import get_db
 from models import Candidate
-from schemas import WorkflowStatusUpdate, InterviewQuestionsRequest
+from schemas import WorkflowStatusUpdate, InterviewQuestionsRequest, EmailGenerationRequest
 
 router = APIRouter(prefix="/api/candidates", tags=["candidates"])
 
@@ -111,3 +111,27 @@ def get_interview_questions(
     from services.ai_engine import generate_interview_questions
     result = generate_interview_questions(candidate.parsed_profile, body.jd_text)
     return result
+
+@router.post("/{candidate_id}/generate-email", response_model=dict)
+def generate_email(
+    candidate_id: int,
+    body: EmailGenerationRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate an automated, personalized Shortlist or Reject email.
+    """
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    if not candidate.parsed_profile:
+        raise HTTPException(status_code=400, detail="Candidate has not been parsed yet")
+    if not body.jd_text.strip():
+        raise HTTPException(status_code=400, detail="Job description text is required")
+    if body.intent not in ["shortlist", "reject"]:
+        raise HTTPException(status_code=400, detail="Intent must be 'shortlist' or 'reject'")
+
+    from services.ai_engine import generate_workflow_email
+    result = generate_workflow_email(candidate.parsed_profile, body.jd_text, body.intent)
+    return result
+

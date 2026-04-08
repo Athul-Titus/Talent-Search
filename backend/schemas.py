@@ -84,3 +84,7 @@ class WorkflowStatusUpdate(BaseModel):
 
 class InterviewQuestionsRequest(BaseModel):
     jd_text: str         # Full job description text
+
+class EmailGenerationRequest(BaseModel):
+    jd_text: str
+    intent: str          # "shortlist" or "reject"

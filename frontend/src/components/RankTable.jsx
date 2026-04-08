@@ -5,6 +5,7 @@ import CredibilityBadge from './CredibilityBadge'
 import ActionButtons from './ActionButtons'
 import WorkflowFilterTabs from './WorkflowFilterTabs'
 import InterviewPanel from './InterviewPanel'
+import EmailDrafterModal from './EmailDrafterModal'
 
 function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
@@ -32,6 +33,7 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
   const [localStatuses, setLocalStatuses] = useState({})
   // One floating interview panel open at a time
   const [interviewCandidate, setInterviewCandidate] = useState(null) // { id, name }
+  const [emailCandidate, setEmailCandidate] = useState(null) // { id, name, email, intent }
 
   function getStatus(r) {
     return localStatuses[r.candidate_id] ?? r.workflow_status ?? 'pending'
@@ -200,6 +202,26 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
                     >
                       🎤 Questions
                     </button>
+                    {/* 📨 Automated Email Drafter (only if shortlisted or rejected) */}
+                    {(getStatus(r) === 'shortlisted' || getStatus(r) === 'rejected') && (
+                      <button
+                        className="action-btn"
+                        style={{ padding: '4px 8px', fontSize: '.75rem', fontWeight: 600, color: 'var(--primary-light)', borderColor: 'rgba(212,175,55,0.4)', background: 'rgba(212,175,55,0.1)' }}
+                        title={jdText ? 'Draft personalized email with AI' : 'Paste JD to draft email'}
+                        onClick={() => {
+                          if (jdText) {
+                            setEmailCandidate({
+                              id: r.candidate_id,
+                              name: isBlindMode ? `Candidate #${String(r.candidate_id).padStart(4, '0')}` : r.candidate_name,
+                              email: isBlindMode ? 'Hidden' : r.candidate_email,
+                              intent: getStatus(r) === 'shortlisted' ? 'shortlist' : 'reject'
+                            })
+                          }
+                        }}
+                      >
+                        📧 Draft Email
+                      </button>
+                    )}
                   </div>
                 </td>
 
@@ -232,6 +254,18 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
           candidateName={isBlindMode ? `Candidate #${String(interviewCandidate.id).padStart(4, '0')}` : interviewCandidate.name}
           jdText={jdText}
           onClose={() => setInterviewCandidate(null)}
+        />
+      )}
+
+      {/* ── Global floating Email Drafter Modal ── */}
+      {emailCandidate && (
+        <EmailDrafterModal
+          candidateId={emailCandidate.id}
+          candidateName={emailCandidate.name}
+          candidateEmail={emailCandidate.email}
+          jdText={jdText}
+          intent={emailCandidate.intent}
+          onClose={() => setEmailCandidate(null)}
         />
       )}
     </div>
