@@ -102,12 +102,12 @@ def normalize_skills(skills: list[str]) -> list[str]:
     return sorted(list(normalized))
 
 
-def compute_weighted_score(ai_score: dict) -> float:
+def compute_weighted_score(ai_score: dict, custom_weights: dict = None) -> float:
     """
     Compute weighted final score from AI sub-scores.
     Weights: experience 35%, skills 30%, domain 20%, education 15%
     """
-    weights = {
+    weights = custom_weights or {
         "experience_match_score": 0.35,
         "skills_match_score": 0.30,
         "domain_fit_score": 0.20,

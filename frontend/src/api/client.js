@@ -37,8 +37,8 @@ export const resumesApi = {
 
 // ── Ranking ─────────────────────────────────────────────
 export const rankingApi = {
-  trigger:   (jobRoleId, jdText) =>
-    api.post('/ranking/score', { job_role_id: jobRoleId, jd_text: jdText }).then(r => r.data),
+  trigger:   (jobRoleId, jdText, weights) =>
+    api.post('/ranking/score', { job_role_id: jobRoleId, jd_text: jdText, weights }).then(r => r.data),
   getResults:(jobRoleId) => api.get(`/ranking/${jobRoleId}`).then(r => r.data),
   getStatus: (jobRoleId) => api.get(`/ranking/status/${jobRoleId}`).then(r => r.data),
 }

@@ -4,6 +4,13 @@ import { jobsApi, rankingApi } from '../api/client'
 import RankTable from '../components/RankTable'
 import JustificationCard from '../components/JustificationCard'
 
+const ROLE_PRESETS = {
+  Default: { experience: 35, skills: 30, domain: 20, education: 15 },
+  Technical: { experience: 30, skills: 50, domain: 10, education: 10 },
+  Managing: { experience: 50, skills: 10, domain: 30, education: 10 },
+  Internship: { experience: 5, skills: 20, domain: 30, education: 45 },
+}
+
 export default function Ranking() {
   const { jobId }   = useParams()
   const navigate    = useNavigate()
@@ -16,6 +23,7 @@ export default function Ranking() {
   const [polling, setPolling]       = useState(false)
   const [step, setStep]             = useState('')  // status message
   const [isBlindMode, setIsBlindMode] = useState(false)
+  const [selectedPreset, setSelectedPreset] = useState('Default')
   const pollRef = useRef(null)
   const fileInputRef = useRef(null)
 
@@ -50,7 +58,14 @@ export default function Ranking() {
     stopPolling()
 
     try {
-      await rankingApi.trigger(parseInt(selectedJob), jdText)
+      const w = ROLE_PRESETS[selectedPreset]
+      const weights = {
+        experience_match_score: w.experience / 100,
+        skills_match_score: w.skills / 100,
+        domain_fit_score: w.domain / 100,
+        education_match_score: w.education / 100
+      }
+      await rankingApi.trigger(parseInt(selectedJob), jdText, weights)
       setStep('AI is scoring candidates… (this may take 30–60 s)')
       setPolling(true)
 
@@ -208,14 +223,26 @@ export default function Ranking() {
 
           {/* Quick guide */}
           <div style={{ marginTop:20, padding:'14px', background:'var(--bg)', borderRadius:'var(--radius-sm)' }}>
-            <div style={{ fontSize:'.75rem', fontWeight:700, color:'var(--text-muted)', marginBottom:8, textTransform:'uppercase', letterSpacing:.5 }}>
-              AI Scoring Weights
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize:'.75rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:.5 }}>
+                AI Scoring Weights
+              </div>
+              <select 
+                className="form-select btn-sm" 
+                style={{ fontSize: '.75rem', padding: '2px 24px 2px 8px', minHeight: 'auto', height: 26, backgroundPosition: 'right 4px center' }}
+                value={selectedPreset}
+                onChange={e => setSelectedPreset(e.target.value)}
+              >
+                {Object.keys(ROLE_PRESETS).map(key => (
+                  <option key={key} value={key}>{key} Role</option>
+                ))}
+              </select>
             </div>
             {[
-              ['Experience', 35, '#3B82F6'],
-              ['Skills Match', 30, '#10B981'],
-              ['Domain Fit', 20, '#F59E0B'],
-              ['Education', 15, '#8B5CF6'],
+              ['Experience', ROLE_PRESETS[selectedPreset].experience, '#3B82F6'],
+              ['Skills Match', ROLE_PRESETS[selectedPreset].skills, '#10B981'],
+              ['Domain Fit', ROLE_PRESETS[selectedPreset].domain, '#F59E0B'],
+              ['Education', ROLE_PRESETS[selectedPreset].education, '#8B5CF6'],
             ].map(([label, pct, color]) => (
               <div key={label} style={{ marginBottom:6 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:'.72rem', color:'var(--text-secondary)', marginBottom:2 }}>

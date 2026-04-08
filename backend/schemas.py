@@ -50,6 +50,7 @@ class CandidateResponse(BaseModel):
 class RankingRequest(BaseModel):
     jd_text: str
     job_role_id: int
+    weights: Optional[dict] = None
 
 
 class RankingResultResponse(BaseModel):

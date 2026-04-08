@@ -11,7 +11,7 @@ from services.scorer import compute_weighted_score
 router = APIRouter(prefix="/api/ranking", tags=["ranking"])
 
 
-def _score_all(job_role_id: int, jd_text: str, candidate_ids: list):
+def _score_all(job_role_id: int, jd_text: str, candidate_ids: list, weights: dict = None):
     """Background thread: score each candidate and store results."""
     db = SessionLocal()
     try:
@@ -26,7 +26,7 @@ def _score_all(job_role_id: int, jd_text: str, candidate_ids: list):
                 continue
             try:
                 result = score_candidate(jd_text, c.parsed_profile)
-                overall = compute_weighted_score(result)
+                overall = compute_weighted_score(result, weights)
                 scores.append((overall, c, result))
             except Exception as e:
                 print(f"Scoring error for candidate {cid}: {e}")
@@ -84,7 +84,7 @@ def trigger_ranking(payload: RankingRequest, db: Session = Depends(get_db)):
 
     t = threading.Thread(
         target=_score_all,
-        args=(payload.job_role_id, payload.jd_text, candidate_ids),
+        args=(payload.job_role_id, payload.jd_text, candidate_ids, payload.weights),
         daemon=True,
     )
     t.start()

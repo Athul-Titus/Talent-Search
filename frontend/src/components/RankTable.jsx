@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import ScoreBar from './ScoreBar'
 import SkillTag from './SkillTag'
 import CredibilityBadge from './CredibilityBadge'
@@ -6,6 +6,8 @@ import ActionButtons from './ActionButtons'
 import WorkflowFilterTabs from './WorkflowFilterTabs'
 import InterviewPanel from './InterviewPanel'
 import EmailDrafterModal from './EmailDrafterModal'
+import DossierTemplate from './DossierTemplate'
+import { exportToPdf } from '../utils/pdfExport'
 
 function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
@@ -34,6 +36,29 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
   // One floating interview panel open at a time
   const [interviewCandidate, setInterviewCandidate] = useState(null) // { id, name }
   const [emailCandidate, setEmailCandidate] = useState(null) // { id, name, email, intent }
+
+  // PDF Export
+  const [exportingCandidate, setExportingCandidate] = useState(null)
+  const [exportLoadingId, setExportLoadingId] = useState(null)
+  const dossierRef = useRef(null)
+
+  const triggerExport = async (r) => {
+    setExportLoadingId(r.candidate_id)
+    const candidateData = {
+      ...r,
+      candidateName: isBlindMode ? `Candidate #${String(r.candidate_id).padStart(4, '0')}` : r.candidate_name,
+      candidateEmail: isBlindMode ? 'Hidden' : r.candidate_email
+    }
+    setExportingCandidate(candidateData)
+    
+    // Wait for the DOM to update and render the hidden template
+    setTimeout(async () => {
+      const success = await exportToPdf(dossierRef, `Dossier_${candidateData.candidateName.replace(/ /g, '_')}.pdf`)
+      if (!success) alert('Failed to generate PDF')
+      setExportingCandidate(null)
+      setExportLoadingId(null)
+    }, 150)
+  }
 
   function getStatus(r) {
     return localStatuses[r.candidate_id] ?? r.workflow_status ?? 'pending'
@@ -222,6 +247,16 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
                         📧 Draft Email
                       </button>
                     )}
+                    {/* 📄 Export PDF Dossier */}
+                    <button
+                      className="action-btn"
+                      style={{ padding: '4px 8px', fontSize: '.75rem', fontWeight: 600, color: '#e5e7eb', borderColor: '#4b5563', background: 'rgba(255,255,255,0.05)' }}
+                      title="Download PDF Dossier"
+                      disabled={exportLoadingId === r.candidate_id}
+                      onClick={() => triggerExport(r)}
+                    >
+                      {exportLoadingId === r.candidate_id ? '⏳ Exporting...' : '📄 PDF'}
+                    </button>
                   </div>
                 </td>
 
@@ -267,6 +302,17 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
           intent={emailCandidate.intent}
           onClose={() => setEmailCandidate(null)}
         />
+      )}
+
+      {/* ── Hidden PDF Template Container ── */}
+      {exportingCandidate && (
+        <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
+          <DossierTemplate 
+            ref={dossierRef} 
+            candidate={exportingCandidate} 
+            jdText={jdText} 
+          />
+        </div>
       )}
     </div>
   )
