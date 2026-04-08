@@ -743,3 +743,36 @@ body {
 .divider-text::before { left: 0; }
 .divider-text::after  { right: 0; }
 
+/* ── Premium Toggle Switch (Bias-Free Mode) ── */
+.premium-toggle {
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; user-select: none;
+}
+.premium-toggle-label {
+  font-size: .85rem; font-weight: 700; color: var(--text-secondary);
+  transition: var(--transition);
+}
+.premium-toggle:hover .premium-toggle-label { color: var(--text); }
+.premium-toggle.active .premium-toggle-label { color: var(--primary); }
+.toggle-track {
+  width: 44px; height: 24px; background: rgba(255,255,255,0.1);
+  border-radius: 20px; position: relative; transition: var(--transition);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.premium-toggle.active .toggle-track {
+  background: rgba(212,175,55,0.2);
+  border-color: rgba(212,175,55,0.5);
+}
+.toggle-thumb {
+  width: 18px; height: 18px; background: #fff; border-radius: 50%;
+  position: absolute; top: 2px; left: 3px;
+  transition: transform .3s cubic-bezier(0.16,1,0.3,1), background-color .3s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+.premium-toggle.active .toggle-thumb {
+  transform: translateX(20px);
+  background: var(--primary);
+  box-shadow: 0 2px 8px rgba(212,175,55,0.6);
+}
+
+
