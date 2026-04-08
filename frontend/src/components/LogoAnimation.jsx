@@ -62,15 +62,25 @@ export default function LogoAnimation() {
       onMouseLeave={() => setHovered(false)}
       title={animating ? '' : 'Click to see AI deconstruct'}
       style={{
-        width:        '62px',
-        height:       '62px',
+        width:        '110px',  /* Increased layout size */
+        height:       '110px',
         flexShrink:   0,
         position:     'relative',
         cursor:       loaded && !animating ? 'pointer' : 'default',
         transition:   'transform .3s cubic-bezier(0.16,1,0.3,1)',
-        transform:    hovered && loaded && !animating ? 'scale(1.06)' : 'scale(1)',
+        transform:    hovered && loaded && !animating ? 'scale(1.05)' : 'scale(1)',
+        animation:    animating ? 'none' : 'float-3d 6s ease-in-out infinite',
+        /* This perfectly fades the image edges to transparent so there's no square box */
+        WebkitMaskImage: 'radial-gradient(circle at 50% 50%, black 45%, transparent 68%)',
+        maskImage: 'radial-gradient(circle at 50% 50%, black 45%, transparent 68%)',
       }}
     >
+      <style>{`
+        @keyframes float-3d {
+          0%, 100% { transform: translateY(0px) scale(1); }
+          50%      { transform: translateY(-3px) scale(1.02); }
+        }
+      `}</style>
       {/* ── Idle breathing halo — always present ─────── */}
       <div style={{
         position: 'absolute', inset: '-10px',
@@ -85,48 +95,40 @@ export default function LogoAnimation() {
       {animating && (
         <>
           <div style={{
-            position: 'absolute', inset: '-4px', borderRadius: '18px',
-            border: '1.5px solid rgba(20,210,200,0.55)',
-            animation: 'pulse-ring 1.4s cubic-bezier(0.25,0.46,0.45,0.94) infinite',
-            pointerEvents: 'none', zIndex: 3,
+            position: 'absolute', inset: '0', borderRadius: '50%',
+            border: '2px solid rgba(100,250,250,0.8)',
+            animation: 'electric-wave 1s ease-out infinite',
+            pointerEvents: 'none', zIndex: 12,
           }} />
           <div style={{
-            position: 'absolute', inset: '-4px', borderRadius: '18px',
-            border: '1px solid rgba(212,175,55,0.35)',
-            animation: 'pulse-ring 1.4s cubic-bezier(0.25,0.46,0.45,0.94) .7s infinite',
-            pointerEvents: 'none', zIndex: 3,
+            position: 'absolute', inset: '0', borderRadius: '50%',
+            border: '2px solid rgba(100,250,250,0.6)',
+            animation: 'electric-wave 1.2s ease-out .3s infinite',
+            pointerEvents: 'none', zIndex: 12,
+          }} />
+          <div style={{
+            position: 'absolute', inset: '0', borderRadius: '50%',
+            border: '2px solid rgba(100,250,250,0.4)',
+            animation: 'electric-wave 1.5s ease-out .6s infinite',
+            pointerEvents: 'none', zIndex: 12,
           }} />
         </>
       )}
 
-      {/* ── Frame container: looks like a 3D object, not a video ── */}
+      {/* ── Frame container: totally borderless and blended ── */}
       <div style={{
         width: '100%', height: '100%',
-        borderRadius: '14px',
-        overflow: 'hidden',
         position: 'relative',
         zIndex: 1,
-        background: '#07090a',
-        boxShadow: animating
-          ? '0 0 28px rgba(20,210,200,0.45), 0 0 12px rgba(212,175,55,0.25), 0 0 0 1px rgba(20,210,200,0.2)'
-          : hovered && loaded
-            ? '0 0 12px rgba(20,210,200,0.18), 0 0 0 1px rgba(20,210,200,0.1)'
-            : '0 0 0 1px rgba(255,255,255,0.05)',
-        transition: 'box-shadow .4s ease',
+        transition: 'all .4s ease',
       }}>
-        {/* Vignette: blends edges into the dark sidebar — removes "screen" feel */}
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse at 50% 50%, transparent 42%, rgba(7,9,10,0.72) 100%)',
-          borderRadius: '14px',
-        }} />
-
         {/* Subtle shimmer on hover — feels like light reflecting off 3D object */}
         {hovered && !animating && loaded && (
           <div style={{
             position: 'absolute', inset: 0, zIndex: 9, pointerEvents: 'none',
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 60%)',
-            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)',
+            mixBlendMode: 'overlay',
+            borderRadius: '50%',
             transition: 'opacity .3s ease',
           }} />
         )}
@@ -147,7 +149,7 @@ export default function LogoAnimation() {
           </div>
         )}
 
-        {/* The 3D frame — always shown, no play controls */}
+        {/* The 3D frame — fully masked circular fade */}
         {loaded && (
           <img
             src={FRAMES[currentFrame]}
@@ -157,10 +159,12 @@ export default function LogoAnimation() {
               width: '100%', height: '100%',
               objectFit: 'cover', objectPosition: 'center',
               display: 'block',
-              // Slight brightness boost makes it feel like a material, not a screenshot
+              transform: 'scale(1.5)', /* Moderate zoom inside the larger 110px box */
+              transformOrigin: '50% 50%',
+              mixBlendMode: 'lighten', /* Ensures the pure black drops out seamlessly */
               filter: animating
-                ? 'brightness(1.12) saturate(1.1) contrast(1.05)'
-                : 'brightness(0.92) saturate(0.85)',
+                ? 'brightness(1.2) saturate(1.1) contrast(1.1)'
+                : 'brightness(1) saturate(1.05)',
               transition: animating ? 'none' : 'filter .6s ease',
             }}
           />
