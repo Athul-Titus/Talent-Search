@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from database import engine, Base
-from routers import jobs, resumes, ranking, candidates
+from routers import jobs, resumes, ranking, candidates, query
 
 # Create all tables on startup
 Base.metadata.create_all(bind=engine)
@@ -57,6 +57,7 @@ app.include_router(jobs.router)
 app.include_router(resumes.router)
 app.include_router(ranking.router)
 app.include_router(candidates.router)
+app.include_router(query.router)
 
 
 @app.get("/")

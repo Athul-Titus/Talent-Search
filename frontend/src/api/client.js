@@ -26,7 +26,7 @@ export const resumesApi = {
       },
     }).then(r => r.data)
   },
-  streamUrl:    (jobRoleId)          => `${baseURL}/resumes/stream/${jobRoleId}`,
+  streamUrl:    (jobRoleId)          => `http://localhost:8000/api/resumes/stream/${jobRoleId}`,
   listByJob:    (jobRoleId)          => api.get(`/resumes/${jobRoleId}`).then(r => r.data),
   listByDate:   (jobRoleId = null)   => {
     const params = jobRoleId ? `?job_role_id=${jobRoleId}` : ''
@@ -60,3 +60,11 @@ export const candidatesApi = {
   generateEmail: (candidateId, jdText, intent) =>
     api.post(`/candidates/${candidateId}/generate-email`, { jd_text: jdText, intent }).then(r => r.data),
 }
+
+// ── Cymonic Query Engine ─────────────────────────────────
+export const queryApi = {
+  ask: (question, jobRoleId = null) =>
+    api.post('/query', { question, job_role_id: jobRoleId }).then(r => r.data),
+}
+
+export { api }

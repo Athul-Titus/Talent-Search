@@ -16,6 +16,20 @@ def build_job_response(job: JobRole) -> dict:
     on_hold_count     = sum(1 for c in job.candidates if c.workflow_status == "on_hold")
     rejected_count    = sum(1 for c in job.candidates if c.workflow_status == "rejected")
 
+    # ── Credibility flags ─────────────────────────────────
+    flagged_count = sum(
+        1 for c in parsed_candidates
+        if c.flag_level in ("Medium Suspicion", "High Suspicion")
+    )
+
+    # ── Average match score across all ranked candidates ──
+    all_scores = []
+    for c in parsed_candidates:
+        if c.ranking_results:
+            latest = max(c.ranking_results, key=lambda r: r.created_at)
+            all_scores.append(latest.overall_score)
+    avg_match_score = round(sum(all_scores) / len(all_scores), 1) if all_scores else None
+
     # ── Top candidates (prefer shortlisted, fall back to highest scored) ──
     top_candidates = []
     scored = []
@@ -53,8 +67,11 @@ def build_job_response(job: JobRole) -> dict:
         "shortlisted_count": shortlisted_count,
         "on_hold_count": on_hold_count,
         "rejected_count": rejected_count,
+        "flagged_count": flagged_count,
+        "avg_match_score": avg_match_score,
         "top_candidates": top_candidates,
     }
+
 
 
 @router.get("/", response_model=List[dict])

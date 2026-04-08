@@ -318,3 +318,44 @@ def generate_workflow_email(parsed_profile: dict, jd_text: str, intent: str) -> 
             "body": "Thank you for applying. Please let us know when you are available to speak."
         }
 
+
+def answer_query(question: str, candidates: list, job_roles: list) -> str:
+    """
+    Cymonic Query Engine: answers a natural language question based on a 
+    structured snapshot of candidate and ranking data from the database.
+    """
+    # Compact context serialisation (keep tokens low)
+    context = json.dumps(
+        {"job_roles": job_roles, "candidates": candidates},
+        indent=None,
+        default=str
+    )
+
+    system_prompt = f"""You are the Cymonic Query Engine, an expert AI assistant integrated directly into a talent acquisition platform's database.
+
+You have been provided with a real-time JSON snapshot of the recruiter's current candidate pipeline data. This includes candidate names, skills, experience, credibility flags, ranking scores, workflow statuses (shortlisted / rejected / on_hold / pending), and the job roles they applied for.
+
+Your mission is to answer the recruiter's natural language questions precisely, concisely, and in a conversational tone. Act like a highly intelligent colleague who *knows the data deeply*.
+
+Rules:
+- Answer ONLY from the provided data snapshot. Never hallucinate or invent candidates.
+- Be specific. If they ask "who is the best React developer?" — name the candidate, give their score, and briefly explain why.
+- Use bullet points for lists of more than 2 items.
+- If the data is insufficient to fully answer the question, say so honestly.
+- Keep your answers focused. Do not narrate the data dump — only answer what is asked.
+- Use proper recruiter vocabulary (shortlisted, pipeline, credibility risk, etc.).
+
+DATABASE SNAPSHOT:
+{context}"""
+
+    completion = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": question},
+        ],
+        temperature=0.4,
+        max_tokens=700,
+    )
+
+    return completion.choices[0].message.content.strip()

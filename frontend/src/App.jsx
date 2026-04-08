@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
 import Ranking from './pages/Ranking'
+import QueryEngine from './components/QueryEngine'
 
 export default function App() {
   return (
@@ -19,6 +20,8 @@ export default function App() {
             <Route path="/ranking/:jobId" element={<Ranking />} />
           </Routes>
         </main>
+        {/* ── Cymonic Query Engine: global floating widget ─── */}
+        <QueryEngine />
       </div>
     </BrowserRouter>
   )

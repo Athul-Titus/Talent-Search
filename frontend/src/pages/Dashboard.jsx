@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { jobsApi } from '../api/client'
 import CreateJobModal from '../components/CreateJobModal'
@@ -7,17 +7,69 @@ function initials(name = '') {
   return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase() || '?'
 }
 
-function StatCard({ label, value, sub, color, icon }) {
+// ── Animated Count-Up Hook ───────────────────────────────────────────────────
+function useCountUp(target, duration = 1200) {
+  const [value, setValue] = useState(0)
+  useEffect(() => {
+    if (target == null || target === 0) { setValue(0); return }
+    const start = performance.now()
+    const tick = (now) => {
+      const elapsed = now - start
+      const progress = Math.min(elapsed / duration, 1)
+      const ease = 1 - Math.pow(1 - progress, 3)
+      setValue(parseFloat((ease * target).toFixed(1)))
+      if (progress < 1) requestAnimationFrame(tick)
+      else setValue(target)
+    }
+    requestAnimationFrame(tick)
+  }, [target])
+  return value
+}
+
+// ── Premium KPI Card ─────────────────────────────────────────────────────────
+function KpiCard({ label, rawValue, suffix = '', prefix = '', gradientFrom, icon, sub, pulse, onClick }) {
+  const animated = useCountUp(typeof rawValue === 'number' ? rawValue : 0)
+  const display = rawValue == null
+    ? '—'
+    : `${prefix}${typeof rawValue === 'number' ? (Number.isInteger(rawValue) ? Math.round(animated) : animated.toFixed(1)) : rawValue}${suffix}`
+
   return (
-    <div className="stat-card">
-      <div className="stat-icon" style={{ background: color + '18' }}>
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth={2}>
-          {icon}
-        </svg>
+    <div
+      onClick={onClick}
+      style={{
+        background: `linear-gradient(135deg, rgba(${gradientFrom},0.12), rgba(${gradientFrom},0.04))`,
+        border: `1px solid rgba(${gradientFrom},0.22)`,
+        borderRadius: '16px', padding: '24px', position: 'relative',
+        overflow: 'hidden', transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: onClick ? 'pointer' : 'default',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = `0 12px 40px rgba(${gradientFrom},0.18)` }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
+    >
+      {/* Background glow blob */}
+      <div style={{
+        position: 'absolute', top: '-20px', right: '-20px',
+        width: '100px', height: '100px',
+        background: `radial-gradient(circle, rgba(${gradientFrom},0.15), transparent 70%)`,
+        borderRadius: '50%', pointerEvents: 'none'
+      }} />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+        <div style={{
+          width: '40px', height: '40px', borderRadius: '12px',
+          background: `rgba(${gradientFrom},0.15)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem'
+        }}>{icon}</div>
+        {pulse && rawValue > 0 && (
+          <span style={{
+            fontSize: '0.65rem', fontWeight: 700, padding: '3px 8px',
+            borderRadius: '20px', background: `rgba(${gradientFrom},0.18)`,
+            color: `rgb(${gradientFrom})`, letterSpacing: '0.5px', textTransform: 'uppercase'
+          }}>{pulse}</span>
+        )}
       </div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value" style={{ color }}>{value}</div>
-      {sub && <div className="stat-sub">{sub}</div>}
+      <div style={{ fontSize: '2rem', fontWeight: 900, color: `rgb(${gradientFrom})`, lineHeight: 1, marginBottom: '6px', fontVariantNumeric: 'tabular-nums' }}>{display}</div>
+      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>{label}</div>
+      {sub && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{sub}</div>}
     </div>
   )
 }
@@ -124,6 +176,10 @@ export default function Dashboard() {
   const totalParsed       = jobs.reduce((s, j) => s + (j.parsed_count     || 0), 0)
   const totalShortlisted  = jobs.reduce((s, j) => s + (j.shortlisted_count || 0), 0)
   const totalRejected     = jobs.reduce((s, j) => s + (j.rejected_count    || 0), 0)
+  const totalFlagged      = jobs.reduce((s, j) => s + (j.flagged_count     || 0), 0)
+  const allScores         = jobs.flatMap(j => j.avg_match_score != null ? [j.avg_match_score] : [])
+  const avgMatchScore     = allScores.length > 0 ? parseFloat((allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1)) : null
+  const shortlistRate     = totalParsed > 0 ? parseFloat(((totalShortlisted / totalParsed) * 100).toFixed(1)) : null
 
   return (
     <div className="page-wrapper" style={{ animation:'fadeIn .4s ease' }}>
@@ -141,36 +197,14 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="stats-grid">
-        <StatCard
-          label="Active Roles"
-          value={jobs.length}
-          sub="Open positions"
-          color="#1E3A5F"
-          icon={<path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />}
-        />
-        <StatCard
-          label="Total Resumes"
-          value={totalCandidates}
-          sub="Across all roles"
-          color="#4A90C4"
-          icon={<path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />}
-        />
-        <StatCard
-          label="✅ Shortlisted"
-          value={totalShortlisted}
-          sub="Ready for interview"
-          color="#00C853"
-          icon={<path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />}
-        />
-        <StatCard
-          label="❌ Rejected"
-          value={totalRejected}
-          sub="Not a fit"
-          color="#FF1744"
-          icon={<path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />}
-        />
+      {/* ── Premium KPI Cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+        <KpiCard label="Total Candidates" rawValue={totalCandidates} icon="👥" gradientFrom="74,144,196" sub="Across all roles" onClick={() => navigate('/upload')} />
+        <KpiCard label="Avg. Match Score" rawValue={avgMatchScore} suffix="%" icon="🎯" gradientFrom="212,175,55" sub="AI ranking accuracy" pulse={avgMatchScore > 70 ? 'Strong' : avgMatchScore > 50 ? 'Fair' : null} onClick={() => jobs.length > 0 && navigate(`/ranking/${jobs[0].id}`)} />
+        <KpiCard label="Shortlisted" rawValue={totalShortlisted} icon="✅" gradientFrom="0,200,83" sub="Ready for interview" pulse={totalShortlisted > 0 ? 'Active' : null} onClick={() => navigate('/upload')} />
+        <KpiCard label="Credibility Flags" rawValue={totalFlagged} icon="⚠️" gradientFrom="255,179,0" sub="Suspicious resumes" pulse={totalFlagged > 0 ? 'Review' : null} onClick={() => navigate('/upload')} />
+        <KpiCard label="Shortlist Rate" rawValue={shortlistRate} suffix="%" icon="📊" gradientFrom="139,92,246" sub="Of parsed candidates" onClick={() => jobs.length > 0 && navigate(`/ranking/${jobs[0].id}`)} />
+        <KpiCard label="Active Roles" rawValue={jobs.length} icon="💼" gradientFrom="59,130,246" sub="Open positions" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })} />
       </div>
 
       {/* Jobs Grid */}
