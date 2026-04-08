@@ -4,7 +4,7 @@ from typing import Optional, List
 from datetime import datetime
 from database import get_db
 from models import Candidate
-from schemas import WorkflowStatusUpdate
+from schemas import WorkflowStatusUpdate, InterviewQuestionsRequest
 
 router = APIRouter(prefix="/api/candidates", tags=["candidates"])
 
@@ -88,3 +88,26 @@ def get_workflow_summary(role_id: int, db: Session = Depends(get_db)):
         key = status or "pending"
         counts[key] = count
     return counts
+
+
+@router.post("/{candidate_id}/interview-questions", response_model=dict)
+def get_interview_questions(
+    candidate_id: int,
+    body: InterviewQuestionsRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate 2-3 laser-focused interview questions for a specific candidate
+    based on their parsed profile and the provided Job Description.
+    """
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    if not candidate.parsed_profile:
+        raise HTTPException(status_code=400, detail="Candidate has not been parsed yet")
+    if not body.jd_text.strip():
+        raise HTTPException(status_code=400, detail="Job description text is required")
+
+    from services.ai_engine import generate_interview_questions
+    result = generate_interview_questions(candidate.parsed_profile, body.jd_text)
+    return result

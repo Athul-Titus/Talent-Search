@@ -193,3 +193,68 @@ def analyze_credibility(parsed_profile: dict) -> dict:
             "reason": f"AI credibility check unavailable: {str(e)[:80]}",
         }
 
+
+# ── Interview Question Generator ────────────────────────────────────────────
+
+INTERVIEW_PROMPT = """You are a senior technical hiring manager preparing a structured interview.
+Analyze this candidate's resume and the Job Description, then generate EXACTLY 2-3 interview questions.
+
+Job Description:
+{jd}
+
+Candidate Profile (JSON):
+{profile}
+
+STRICT RULES:
+- Generate EXACTLY 2 or 3 questions — never 1, never 4+
+- Each question MUST target ONE specific thing: an unverified skill claim, an experience gap vs JD, an unsupported achievement, or a vague claim
+- Questions must be SPECIFIC — reference actual tool names, company names, project details, or timeframes from the resume
+- NEVER generate generic questions like "tell me about yourself", "where do you see yourself in 5 years", "what are your strengths/weaknesses"
+- Each question should feel like it came from someone who read the resume carefully and noticed something
+- Reason tag: exactly 3-5 words describing WHY this question was chosen (e.g. "Unverified skill claim", "Gap vs JD", "Unsupported leadership claim")
+
+Return ONLY valid JSON in this exact format:
+{{
+  "questions": [
+    {{
+      "question": "Your precise, specific interview question here",
+      "reason": "3-5 word reason tag"
+    }}
+  ]
+}}"""
+
+
+def generate_interview_questions(parsed_profile: dict, jd_text: str) -> dict:
+    """
+    Generate 2-3 targeted, laser-focused interview questions for a specific candidate
+    based on their resume gaps and the JD requirements.
+    """
+    profile_str = json.dumps(parsed_profile, indent=2)[:5000]
+    prompt = INTERVIEW_PROMPT.format(
+        jd=jd_text[:3000],
+        profile=profile_str,
+    )
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,   # Slightly higher for creative specificity
+        max_tokens=800,
+    )
+    raw = _clean_json(response.choices[0].message.content)
+    data = json.loads(raw)
+
+    # Validate and cap at 3 questions
+    questions = data.get("questions") or []
+    questions = [
+        {
+            "question": str(q.get("question", "")).strip(),
+            "reason":   str(q.get("reason", "")).strip(),
+        }
+        for q in questions
+        if q.get("question")
+    ][:3]
+
+    return {"questions": questions}
+
+

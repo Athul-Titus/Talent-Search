@@ -232,7 +232,7 @@ export default function Ranking() {
                 </button>
               </div>
 
-              <RankTable results={results} />
+              <RankTable results={results} jdText={jdText} />
 
               {/* Top 5 AI Justifications */}
               {top5.length > 0 && (

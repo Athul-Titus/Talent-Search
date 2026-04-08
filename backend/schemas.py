@@ -80,3 +80,7 @@ class RankingResultResponse(BaseModel):
 class WorkflowStatusUpdate(BaseModel):
     status: str          # "pending" | "shortlisted" | "on_hold" | "rejected"
     note: Optional[str] = None   # Recruiter note (optional)
+
+
+class InterviewQuestionsRequest(BaseModel):
+    jd_text: str         # Full job description text
