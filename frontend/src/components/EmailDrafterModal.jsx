@@ -28,15 +28,14 @@ export default function EmailDrafterModal({ candidateId, candidateName, candidat
     alert('Copied to clipboard!')
   }
 
-  const handleMailTo = () => {
-    const activeEmail = candidateEmail === 'Hidden' ? '' : candidateEmail || ''
-    const safeSubject = encodeURIComponent(emailSubject)
-    const safeBody = encodeURIComponent(emailBody)
-    window.location.href = `mailto:${activeEmail}?subject=${safeSubject}&body=${safeBody}`
-  }
-
   const intentColor = intent === 'shortlist' ? '#00C853' : '#FF1744'
   const title = intent === 'shortlist' ? 'Interview Offer' : 'Rejection Notice'
+
+  const activeEmail = candidateEmail === 'Hidden' ? '' : candidateEmail || ''
+  const safeSubject = encodeURIComponent(emailSubject)
+  const safeBody = encodeURIComponent(emailBody)
+  const mailtoLink = `mailto:${activeEmail}?subject=${safeSubject}&body=${safeBody}`
+  const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${activeEmail}&su=${safeSubject}&body=${safeBody}`
 
   return (
     <div style={{
@@ -123,9 +122,22 @@ export default function EmailDrafterModal({ candidateId, candidateName, candidat
             <button className="btn btn-ghost" onClick={handleCopy}>
               📋 Copy to Clipboard
             </button>
-            <button className="btn btn-primary" onClick={handleMailTo} style={{ background: 'var(--accent)', color: 'white' }}>
-              ✉️ Open in Mail Client
-            </button>
+            <a 
+              href={gmailLink}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-primary" 
+              style={{ background: '#EA4335', color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center' }}
+            >
+              🌐 Open in Gmail
+            </a>
+            <a 
+              href={mailtoLink}
+              className="btn btn-primary" 
+              style={{ background: 'var(--accent)', color: 'white', textDecoration: 'none', display: 'flex', alignItems: 'center' }}
+            >
+              ✉️ OS Mail App
+            </a>
           </div>
         )}
       </div>
