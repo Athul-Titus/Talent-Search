@@ -140,6 +140,19 @@ async def upload_resumes(
 
     created = []
     for upload in files:
+        # 1. Deduplication Check
+        existing = db.query(Candidate).filter(
+            Candidate.job_role_id == job_role_id, 
+            Candidate.file_name == upload.filename
+        ).first()
+        if existing:
+            created.append({
+                "file_name": upload.filename,
+                "status": "failed",
+                "error_message": "Duplicate file: already uploaded to this role",
+            })
+            continue
+
         suffix = os.path.splitext(upload.filename or "")[1].lower()
         if suffix not in ALLOWED_TYPES:
             created.append({
