@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { jobsApi } from '../api/client'
 import CreateJobModal from '../components/CreateJobModal'
 import { InfoTip } from '../components/Tooltip'
-
+import {
+  PieChart, Pie, Cell,
+  ComposedChart, Bar, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer
+} from 'recharts'
 function initials(name = '') {
   return name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase() || '?'
 }
@@ -236,6 +240,20 @@ export default function Dashboard() {
   const avgMatchScore     = allScores.length > 0 ? parseFloat((allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(1)) : null
   const shortlistRate     = totalParsed > 0 ? parseFloat(((totalShortlisted / totalParsed) * 100).toFixed(1)) : null
 
+  const rawPending = totalParsed - (totalShortlisted + totalRejected)
+  const donutData = [
+    { name: 'Shortlisted', value: totalShortlisted, color: '#00C853' },
+    { name: 'Rejected', value: totalRejected, color: '#F44336' },
+    { name: 'Pending Review', value: Math.max(0, rawPending), color: '#3B82F6' }
+  ].filter(d => d.value > 0)
+
+  const barChartData = jobs.map(j => ({
+    name: j.title.length > 20 ? j.title.slice(0,20) + '…' : j.title,
+    uploaded: j.candidate_count || 0,
+    parsed: j.parsed_count || 0,
+    avgScore: j.avg_match_score ? parseFloat(j.avg_match_score.toFixed(1)) : 0
+  }))
+
   return (
     <div className="page-wrapper" style={{ animation:'fadeIn .4s ease' }}>
       {/* Header */}
@@ -261,6 +279,66 @@ export default function Dashboard() {
         <KpiCard label="Shortlist Rate" rawValue={shortlistRate} suffix="%" icon="📊" gradientFrom="139,92,246" sub="Of parsed candidates" onClick={() => jobs.length > 0 && navigate(`/ranking/${jobs[0].id}`)} tooltip="The percentage of parsed candidates that have been shortlisted — a key pipeline health indicator." />
         <KpiCard label="Active Roles" rawValue={jobs.length} icon="💼" gradientFrom="59,130,246" sub="Open positions" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })} tooltip="Number of open job positions currently accepting candidate applications." />
       </div>
+
+      {/* ── Analytics Hub ── */}
+      {jobs.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(400px, 2.5fr)', gap: '20px', marginBottom: '32px' }}>
+          
+          {/* Donut Chart */}
+          <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: '1.05rem', marginBottom: '16px', fontWeight: 600 }}>Pipeline Distribution</h3>
+            {donutData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie
+                    data={donutData}
+                    cx="50%" cy="50%"
+                    innerRadius={70} outerRadius={95}
+                    paddingAngle={6}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {donutData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip 
+                    contentStyle={{ backgroundColor: 'rgba(20,20,20,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px' }} 
+                    itemStyle={{ color: '#fff', fontWeight: 500 }} 
+                  />
+                  <Legend wrapperStyle={{ fontSize: '0.8rem', opacity: 0.8 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No candidate allocations mapped yet</div>
+            )}
+          </div>
+
+          {/* Bar/Line Chart */}
+          <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '16px' }}>
+               <h3 style={{ fontSize: '1.05rem', fontWeight: 600 }}>Role Performance Analytics</h3>
+               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Candidates volume vs. AI Score</span>
+            </div>
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={barChartData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)', fontSize: 11}} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="left" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)', fontSize: 11}} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="right" orientation="right" domain={[0, 100]} stroke="rgba(212,175,55,0.8)" tick={{fill: 'rgba(212,175,55,0.8)', fontSize: 11}} tickLine={false} axisLine={false} />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: 'rgba(20,20,20,0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px' }} 
+                  itemStyle={{ color: '#fff', fontWeight: 500 }} 
+                />
+                <Legend wrapperStyle={{ fontSize: '0.8rem', opacity: 0.8 }} />
+                <Bar yAxisId="left" dataKey="uploaded" name="Uploaded" barSize={16} fill="var(--primary-dark)" radius={[4,4,0,0]} />
+                <Bar yAxisId="left" dataKey="parsed" name="Parsed" barSize={16} fill="var(--primary-mid)" radius={[4,4,0,0]} />
+                <Line yAxisId="right" type="monotone" dataKey="avgScore" name="Avg Match Score (%)" stroke="rgba(212,175,55,1)" strokeWidth={3} dot={{r: 4, fill: '#121212', strokeWidth: 2}} activeDot={{r: 6}} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Jobs Grid */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>

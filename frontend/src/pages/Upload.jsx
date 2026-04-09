@@ -9,7 +9,7 @@ function statusColor(status) {
   return { uploading: '#F59E0B', parsing: '#3B82F6', parsed: '#10B981', failed: '#EF4444' }[status] || '#94A3B8'
 }
 
-function FileRow({ file, candidate }) {
+function FileRow({ file, candidate, onDelete }) {
   const status   = candidate?.status || 'uploading'
   const progress = status === 'parsed' ? 100 : status === 'failed' ? 100 : status === 'parsing' ? 65 : 35
   const ext      = (file?.name || candidate?.file_name || '').split('.').pop().toLowerCase()
@@ -51,6 +51,21 @@ function FileRow({ file, candidate }) {
 
       {status === 'failed' && candidate?.error_message && (
         <span title={candidate.error_message} style={{ cursor: 'help', fontSize: '.8rem' }}>⚠️</span>
+      )}
+      
+      {candidate?.id && (
+        <button 
+          onClick={() => onDelete && onDelete(candidate.id)} 
+          disabled={status === 'uploading' || status === 'parsing'}
+          style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', padding:'4px', marginLeft:'8px' }}
+          title="Delete Resume"
+          onMouseOver={e => e.currentTarget.style.color = 'var(--danger)'}
+          onMouseOut={e => e.currentTarget.style.color = 'var(--text-muted)'}
+        >
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
       )}
     </div>
   )
@@ -225,6 +240,21 @@ export default function Upload() {
     }
   }
 
+  // ── Delete resume handler ─────────────────────────────
+  async function handleDeleteResume(candidateId) {
+    if (!window.confirm('Are you sure you want to delete this resume?')) return;
+    try {
+      await resumesApi.delete(candidateId);
+      toast.success('Resume deleted successfully');
+      setCandidates(prev => prev.filter(c => c.id !== candidateId));
+      if (groupBy === 'date') {
+        loadData();
+      }
+    } catch (e) {
+      toast.error('Failed to delete resume');
+    }
+  }
+
   // ── Merge local file refs with polled candidates ───────
   const displayRows = useCallback(() =>
     candidates.map(c => ({
@@ -320,7 +350,7 @@ export default function Upload() {
 
               <div className="file-list" style={{ marginTop: 24 }}>
                 {displayRows().map((row, i) => (
-                  <FileRow key={row.candidate?.id || i} file={row.file} candidate={row.candidate} />
+                  <FileRow key={row.candidate?.id || i} file={row.file} candidate={row.candidate} onDelete={handleDeleteResume} />
                 ))}
               </div>
 
@@ -397,7 +427,7 @@ export default function Upload() {
                   <DateGroupHeader group={group} />
                   <div className="file-list" style={{ marginTop: 8 }}>
                     {group.candidates.map(c => (
-                      <FileRow key={c.id} file={null} candidate={c} />
+                      <FileRow key={c.id} file={null} candidate={c} onDelete={handleDeleteResume} />
                     ))}
                   </div>
                 </div>
