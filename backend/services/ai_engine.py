@@ -165,10 +165,10 @@ def analyze_credibility(parsed_profile: dict) -> dict:
 
     try:
         response = client.chat.completions.create(
-            model=MODEL,
+            model=FAST_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.05,
-            max_tokens=512,
+            max_tokens=256,
         )
         raw = _clean_json(response.choices[0].message.content)
         data = json.loads(raw)
