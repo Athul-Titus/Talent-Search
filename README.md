@@ -1,4 +1,4 @@
-# Cymonic: The "Smart Talent" Selection Engine
+# The "Smart Talent" Selection Engine
 
 > **A Next-Generation AI Recruitment Pipeline.** 
 > Built to eliminate "Volume Hiring" fatigue and bypass the archaic constraints of traditional Keyword-Matching ATS systems.
