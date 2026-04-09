@@ -81,7 +81,7 @@ export default function Ranking() {
                   stopPolling()
                 }
               } catch (e) { /* continue polling */ }
-            }, 5000)
+            }, 1000)
           }
         }).catch(() => {})
 
@@ -135,7 +135,7 @@ export default function Ranking() {
             stopPolling()
           }
         } catch (e) { /* continue polling */ }
-      }, 5000)
+      }, 1000)
 
       // Safety timeout after 3 minutes
       setTimeout(() => {

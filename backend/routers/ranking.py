@@ -1,4 +1,5 @@
 import threading
+import concurrent.futures
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -10,6 +11,8 @@ from services.scorer import compute_weighted_score
 
 router = APIRouter(prefix="/api/ranking", tags=["ranking"])
 
+active_rankings = set()
+
 
 def _score_all(job_role_id: int, jd_text: str, candidate_ids: list, weights: dict = None):
     """Background thread: score each candidate and store results."""
@@ -20,17 +23,24 @@ def _score_all(job_role_id: int, jd_text: str, candidate_ids: list, weights: dic
         db.commit()
 
         scores = []
-        for cid in candidate_ids:
+        
+        def _score_single(cid):
             c = db.query(Candidate).filter(Candidate.id == cid).first()
             if not c or not c.parsed_profile:
-                continue
+                return None
             try:
                 result = score_candidate(jd_text, c.parsed_profile)
                 overall = compute_weighted_score(result, weights)
-                scores.append((overall, c, result))
+                return (overall, c, result)
             except Exception as e:
                 print(f"Scoring error for candidate {cid}: {e}")
-                continue
+                return None
+
+        # Execute scoring in parallel (up to 10 workers for massive speedup)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            for res in executor.map(_score_single, candidate_ids):
+                if res:
+                    scores.append(res)
 
         # Sort by score descending
         scores.sort(key=lambda x: x[0], reverse=True)
@@ -57,6 +67,7 @@ def _score_all(job_role_id: int, jd_text: str, candidate_ids: list, weights: dic
     except Exception as e:
         print(f"Ranking background error: {e}")
     finally:
+        active_rankings.discard(job_role_id)
         db.close()
 
 
@@ -82,6 +93,7 @@ def trigger_ranking(payload: RankingRequest, db: Session = Depends(get_db)):
 
     candidate_ids = [c.id for c in parsed_candidates]
 
+    active_rankings.add(payload.job_role_id)
     t = threading.Thread(
         target=_score_all,
         args=(payload.job_role_id, payload.jd_text, candidate_ids, payload.weights),
@@ -141,23 +153,8 @@ def get_rankings(job_role_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/status/{job_role_id}")
-def get_ranking_status(job_role_id: int, db: Session = Depends(get_db)):
-    """Check if ranking is complete."""
-    count = (
-        db.query(RankingResult)
-        .filter(RankingResult.job_role_id == job_role_id)
-        .count()
-    )
-    parsed_count = (
-        db.query(Candidate)
-        .filter(
-            Candidate.job_role_id == job_role_id,
-            Candidate.status == "parsed",
-        )
-        .count()
-    )
+def get_ranking_status(job_role_id: int):
+    """Check if ranking is currently in progress via the background thread."""
     return {
-        "ranked": count,
-        "parsed_candidates": parsed_count,
-        "is_complete": count > 0,
+        "is_complete": job_role_id not in active_rankings
     }
