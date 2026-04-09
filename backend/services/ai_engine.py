@@ -12,6 +12,7 @@ client = OpenAI(
 )
 
 MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
+FAST_MODEL = os.getenv("NVIDIA_FAST_MODEL", "meta/llama-3.1-8b-instruct")
 
 
 PARSE_PROMPT = """You are an expert HR analyst and resume parser. Extract structured information from the resume text below.
@@ -101,10 +102,10 @@ def parse_resume(text: str) -> dict:
     """Extract a structured profile from raw resume text via NVIDIA NIM."""
     prompt = PARSE_PROMPT + text[:8000]
     response = client.chat.completions.create(
-        model=MODEL,
+        model=FAST_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.05,
-        max_tokens=2048,
+        max_tokens=1024,
     )
     raw = _clean_json(response.choices[0].message.content)
     return json.loads(raw)

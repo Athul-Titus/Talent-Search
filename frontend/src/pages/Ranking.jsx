@@ -38,14 +38,63 @@ export default function Ranking() {
     })
   }, [])
 
-  // Load existing results when job changes
+  // Load existing results and JD when job changes
   useEffect(() => {
     if (!selectedJob) return
     setResults([])
+
+    // 1. Auto-restore Job Description text
+    const cachedJd = localStorage.getItem(`cymonic_jd_${selectedJob}`)
+    if (cachedJd) {
+      setJdText(cachedJd)
+    } else {
+      const jobObj = jobs.find(j => String(j.id) === String(selectedJob))
+      if (jobObj && jobObj.description) {
+        setJdText(jobObj.description)
+      } else {
+        setJdText('')
+      }
+    }
+
+    // 2. Fetch results and see if a ranking is already/still active in the background
     rankingApi.getResults(selectedJob)
-      .then(data => setResults(data))
+      .then(data => {
+        setResults(data)
+        
+        // Check for underlying background task
+        rankingApi.getStatus(selectedJob).then(status => {
+          if (status && !status.is_complete) {
+            // Re-mount the active polling state
+            setPolling(true)
+            setLoading(true)
+            setStep('AI is still scoring candidates… (resumed connection)')
+            
+            pollRef.current = setInterval(async () => {
+              try {
+                const s = await rankingApi.getStatus(selectedJob)
+                if (s.is_complete) {
+                  const d = await rankingApi.getResults(selectedJob)
+                  setResults(d)
+                  setStep(`Ranked ${d.length} candidates`)
+                  toast.success(`Semantic ranking complete!`)
+                  setLoading(false)
+                  stopPolling()
+                }
+              } catch (e) { /* continue polling */ }
+            }, 5000)
+          }
+        }).catch(() => {})
+
+      })
       .catch(() => {})
-  }, [selectedJob])
+  }, [selectedJob, jobs])
+
+  // Save the JD text when the user types it in
+  useEffect(() => {
+    if (selectedJob && jdText) {
+      localStorage.setItem(`cymonic_jd_${selectedJob}`, jdText)
+    }
+  }, [selectedJob, jdText])
 
   function stopPolling() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
