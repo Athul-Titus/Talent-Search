@@ -3,6 +3,10 @@
 > **A Next-Generation AI Recruitment Pipeline.** 
 > Built to eliminate "Volume Hiring" fatigue and bypass the archaic constraints of traditional Keyword-Matching ATS systems.
 
+### 🌐 Live Demo
+* **Frontend UI**: [https://talent-search-eight.vercel.app](https://talent-search-eight.vercel.app)
+* **Backend API**: [https://talent-search-v2wx.onrender.com](https://talent-search-v2wx.onrender.com)
+
 ## 📖 Background & Problem Statement
 
 Modern Talent Acquisition is severely bottlenecked. When a single job posting attracts 1,000+ applicants, recruiters are forced to rely on "dumb" keyword-matching Applicant Tracking Systems (ATS). If a posting asks for "Java" and an expert candidate writes "JVM Specialist", traditional systems instantly reject them. 
