@@ -119,7 +119,8 @@ def score_candidate(jd_text: str, candidate_profile: dict) -> dict:
     response = client.chat.completions.create(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.05,
+        temperature=0.0,
+        seed=42,
         max_tokens=1024,
     )
     raw = _clean_json(response.choices[0].message.content)
