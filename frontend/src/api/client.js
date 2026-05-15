@@ -68,7 +68,14 @@ export const resumesApi = {
       },
     }).then(r => r.data)
   },
-  streamUrl:    (jobRoleId)          => `http://localhost:8000/api/resumes/stream/${jobRoleId}`,
+  streamUrl:    (jobRoleId)          => {
+    // For deployment, we need the full URL. If baseURL is just '/api', 
+    // we use the current window location to build it.
+    const base = baseURL.startsWith('http') 
+      ? baseURL 
+      : `${window.location.origin}${baseURL}`;
+    return `${base}/resumes/stream/${jobRoleId}`;
+  },
   listByJob:    (jobRoleId)          => api.get(`/resumes/${jobRoleId}`).then(r => r.data),
   listByDate:   (jobRoleId = null)   => {
     const params = jobRoleId ? `?job_role_id=${jobRoleId}` : ''
