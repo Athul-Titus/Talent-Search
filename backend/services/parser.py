@@ -17,6 +17,9 @@ except ImportError:
 try:
     from PIL import Image
     import pytesseract
+    # Set Tesseract binary path for Windows
+    if os.name == 'nt':
+        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
