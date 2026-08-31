@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import time
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -11,8 +12,14 @@ client = OpenAI(
     api_key=os.getenv("NVIDIA_API_KEY"),
 )
 
-MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
-FAST_MODEL = os.getenv("NVIDIA_FAST_MODEL", "meta/llama-3.3-70b-instruct")
+MODEL = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3-super-120b-a12b")
+FAST_MODEL = os.getenv("NVIDIA_FAST_MODEL", "meta/llama-3.2-11b-vision-instruct")
+
+# Fallback chain: if primary model is overloaded, try these in order
+MODEL_FALLBACKS = [
+    MODEL,
+    FAST_MODEL,
+]
 
 
 PARSE_PROMPT = """You are an expert HR analyst and resume parser. Extract structured information from the resume text below.
@@ -98,33 +105,68 @@ def _clean_json(content: str) -> str:
     return content.strip()
 
 
+def _call_with_retry(model: str, messages: list, temperature: float = 0.05,
+                     max_tokens: int = 1024, seed: int = None,
+                     max_retries: int = 4) -> str:
+    """Call NVIDIA NIM with exponential backoff retry and model fallback on 503."""
+    models_to_try = [model] + [m for m in MODEL_FALLBACKS if m != model]
+    last_error = None
+    for attempt_model in models_to_try:
+        for attempt in range(max_retries):
+            try:
+                kwargs = dict(
+                    model=attempt_model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                if seed is not None:
+                    kwargs["seed"] = seed
+                response = client.chat.completions.create(**kwargs)
+                return response.choices[0].message.content
+            except Exception as e:
+                err_str = str(e)
+                is_overloaded = "503" in err_str or "overloaded" in err_str.lower() or "rate" in err_str.lower()
+                is_not_found = "404" in err_str or "410" in err_str
+                if is_not_found:
+                    # Model gone — skip to next model immediately
+                    last_error = e
+                    break
+                if is_overloaded and attempt < max_retries - 1:
+                    wait = 2 ** attempt  # 1s, 2s, 4s, 8s
+                    print(f"[ai_engine] {attempt_model} overloaded, retrying in {wait}s (attempt {attempt+1})")
+                    time.sleep(wait)
+                    last_error = e
+                    continue
+                last_error = e
+                break  # non-retryable error
+    raise last_error
+
+
 def parse_resume(text: str) -> dict:
     """Extract a structured profile from raw resume text via NVIDIA NIM."""
     prompt = PARSE_PROMPT + text[:8000]
-    response = client.chat.completions.create(
+    raw = _call_with_retry(
         model=FAST_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.05,
         max_tokens=1024,
     )
-    raw = _clean_json(response.choices[0].message.content)
-    return json.loads(raw)
+    return json.loads(_clean_json(raw))
 
 
 def score_candidate(jd_text: str, candidate_profile: dict) -> dict:
     """Score a candidate profile against a job description via NVIDIA NIM."""
     profile_str = json.dumps(candidate_profile, indent=2)[:4000]
     prompt = SCORE_PROMPT.format(jd=jd_text[:4000], profile=profile_str)
-
-    response = client.chat.completions.create(
+    raw = _call_with_retry(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
-        seed=42,
         max_tokens=1024,
+        seed=42,
     )
-    raw = _clean_json(response.choices[0].message.content)
-    return json.loads(raw)
+    return json.loads(_clean_json(raw))
 
 
 # ── Credibility / Anti-Keyword-Stuffing ─────────────────────────────────────
