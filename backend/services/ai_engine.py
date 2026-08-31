@@ -193,7 +193,7 @@ def score_candidate(jd_text: str, candidate_profile: dict) -> dict:
         max_tokens=1024,
         seed=42,
     )
-    return json.loads(_clean_json(raw))
+    return _parse_json_safe(raw, context="score_candidate")
 
 
 # ── Credibility / Anti-Keyword-Stuffing ─────────────────────────────────────
