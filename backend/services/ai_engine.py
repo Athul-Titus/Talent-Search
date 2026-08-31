@@ -306,14 +306,13 @@ def generate_interview_questions(parsed_profile: dict, jd_text: str) -> dict:
         profile=profile_str,
     )
 
-    response = client.chat.completions.create(
+    raw = _call_with_retry(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,   # Slightly higher for creative specificity
+        temperature=0.3,
         max_tokens=800,
     )
-    raw = _clean_json(response.choices[0].message.content)
-    data = json.loads(raw)
+    data = _parse_json_safe(raw, context="generate_interview_questions")
 
     # Validate and cap at 3 questions
     questions = data.get("questions") or []
