@@ -12,7 +12,7 @@ client = OpenAI(
 )
 
 MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
-FAST_MODEL = os.getenv("NVIDIA_FAST_MODEL", "meta/llama-3.1-8b-instruct")
+FAST_MODEL = os.getenv("NVIDIA_FAST_MODEL", "meta/llama-3.3-70b-instruct")
 
 
 PARSE_PROMPT = """You are an expert HR analyst and resume parser. Extract structured information from the resume text below.
