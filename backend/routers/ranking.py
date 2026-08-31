@@ -1,5 +1,6 @@
 import threading
 import concurrent.futures
+import time
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -36,9 +37,15 @@ def _score_all(job_role_id: int, jd_text: str, candidate_ids: list, weights: dic
                 print(f"Scoring error for candidate {cid}: {e}")
                 return None
 
-        # Execute scoring in parallel (up to 10 workers for massive speedup)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            for res in executor.map(_score_single, candidate_ids):
+        # Limit to 3 concurrent workers to avoid NVIDIA NIM rate-limit (503)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = []
+            for i, cid in enumerate(candidate_ids):
+                if i > 0:
+                    time.sleep(1)  # stagger submissions by 1s
+                futures.append(executor.submit(_score_single, cid))
+            for future in concurrent.futures.as_completed(futures):
+                res = future.result()
                 if res:
                     scores.append(res)
 
