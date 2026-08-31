@@ -108,7 +108,7 @@ def _clean_json(content: str) -> str:
 def _call_with_retry(model: str, messages: list, temperature: float = 0.05,
                      max_tokens: int = 1024, seed: int = None,
                      max_retries: int = 4) -> str:
-    """Call NVIDIA NIM with exponential backoff retry and model fallback on 503."""
+    """Call NVIDIA NIM with exponential backoff retry and model fallback on 503/empty."""
     models_to_try = [model] + [m for m in MODEL_FALLBACKS if m != model]
     last_error = None
     for attempt_model in models_to_try:
@@ -123,7 +123,16 @@ def _call_with_retry(model: str, messages: list, temperature: float = 0.05,
                 if seed is not None:
                     kwargs["seed"] = seed
                 response = client.chat.completions.create(**kwargs)
-                return response.choices[0].message.content
+                content = response.choices[0].message.content or ""
+                # If model returned empty string, treat as retryable
+                if not content.strip():
+                    print(f"[ai_engine] {attempt_model} returned empty response, retrying ({attempt+1})")
+                    last_error = ValueError(f"{attempt_model} returned empty content")
+                    if attempt < max_retries - 1:
+                        time.sleep(2 ** attempt)
+                        continue
+                    break  # try next model
+                return content
             except Exception as e:
                 err_str = str(e)
                 is_overloaded = "503" in err_str or "overloaded" in err_str.lower() or "rate" in err_str.lower()
@@ -143,6 +152,24 @@ def _call_with_retry(model: str, messages: list, temperature: float = 0.05,
     raise last_error
 
 
+def _parse_json_safe(raw: str, context: str = "") -> dict:
+    """Parse JSON from model response with helpful error on empty/invalid content."""
+    cleaned = _clean_json(raw)
+    if not cleaned:
+        raise ValueError(f"Model returned empty response{' for ' + context if context else ''}")
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        # Try to extract JSON object from within the text (model may have added extra text)
+        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group())
+            except json.JSONDecodeError:
+                pass
+        raise ValueError(f"Invalid JSON from model{' for ' + context if context else ''}: {e} | raw: {cleaned[:200]}")
+
+
 def parse_resume(text: str) -> dict:
     """Extract a structured profile from raw resume text via NVIDIA NIM."""
     prompt = PARSE_PROMPT + text[:8000]
@@ -152,7 +179,7 @@ def parse_resume(text: str) -> dict:
         temperature=0.05,
         max_tokens=1024,
     )
-    return json.loads(_clean_json(raw))
+    return _parse_json_safe(raw, context="parse_resume")
 
 
 def score_candidate(jd_text: str, candidate_profile: dict) -> dict:
