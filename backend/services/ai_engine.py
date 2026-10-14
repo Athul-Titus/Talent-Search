@@ -171,16 +171,21 @@ def _parse_json_safe(raw: str, context: str = "") -> dict:
     if not cleaned:
         raise ValueError(f"Model returned empty response{' for ' + context if context else ''}")
     try:
-        return json.loads(cleaned)
+        return json.loads(cleaned, strict=False)
     except json.JSONDecodeError:
         # Extract the outermost JSON object or array from anywhere in the text
         match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', cleaned)
         if match:
             candidate_json = match.group(1)
             try:
-                return json.loads(candidate_json)
+                return json.loads(candidate_json, strict=False)
             except json.JSONDecodeError:
-                pass
+                # Try escaping raw control characters
+                fixed = re.sub(r'(?<!\\)\n', r'\\n', candidate_json)
+                try:
+                    return json.loads(fixed, strict=False)
+                except Exception:
+                    pass
         raise ValueError(f"Invalid JSON from model{' for ' + context if context else ''}: raw: {cleaned[:200]}")
 
 
