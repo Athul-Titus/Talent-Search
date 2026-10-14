@@ -50,7 +50,11 @@ def algorithmic_credibility(profile: dict, raw_text: str = "") -> dict:
         ])
         exp_texts.append(desc)
 
-    corpus = _normalise(" ".join(exp_texts + certs + [raw_text or ""]))
+    evidence_text = " ".join(exp_texts + certs)
+    if not evidence_text.strip():
+        # Fallback if no structured experience was parsed
+        evidence_text = raw_text or ""
+    corpus = _normalise(evidence_text)
 
     # ── Backed vs stuffed skills ───────────────────────────────────
     backed_skills   = []

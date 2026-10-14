@@ -248,14 +248,13 @@ def analyze_credibility(parsed_profile: dict) -> dict:
     prompt = CREDIBILITY_PROMPT.format(profile=profile_str)
 
     try:
-        response = client.chat.completions.create(
+        raw = _call_with_retry(
             model=FAST_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.05,
-            max_tokens=256,
+            max_tokens=512,
         )
-        raw = _clean_json(response.choices[0].message.content)
-        data = json.loads(raw)
+        data = _parse_json_safe(raw, context="analyze_credibility")
 
         # Sanitise / ensure all required keys exist
         flag_map = {"High Suspicion", "Moderate", "Credible"}
@@ -383,24 +382,31 @@ def generate_workflow_email(parsed_profile: dict, jd_text: str, intent: str) -> 
         profile=profile_str,
     )
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
-        max_tokens=600,
-    )
-    raw = _clean_json(response.choices[0].message.content)
     try:
-        data = json.loads(raw)
+        raw = _call_with_retry(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=800,
+        )
+        data = _parse_json_safe(raw, context="generate_workflow_email")
         return {
             "subject": data.get("subject", "Update on your application"),
-            "body": data.get("body", "Please contact us for an update on your application.")
+            "body": data.get("body", "Thank you for applying. Please let us know when you are available to speak.")
         }
-    except Exception:
-        return {
-            "subject": "Update on your application",
-            "body": "Thank you for applying. Please let us know when you are available to speak."
-        }
+    except Exception as e:
+        print(f"[ai_engine] generate_workflow_email fallback: {e}")
+        cand_first_name = (parsed_profile.get("name") or "Candidate").split()[0]
+        if intent.lower() == "shortlist":
+            return {
+                "subject": f"Update regarding your application with Cymonic",
+                "body": f"Hi {cand_first_name},\n\nThank you for applying! We were very impressed by your profile and experience. We would love to invite you for a 30-minute introductory conversation next week.\n\nPlease let us know your availability.\n\nBest regards,\nCymonic Talent Team"
+            }
+        else:
+            return {
+                "subject": f"Update regarding your application with Cymonic",
+                "body": f"Hi {cand_first_name},\n\nThank you for your interest in joining our team. At this time, we have decided to move forward with candidates whose experience more closely matches our technical stack requirements.\n\nWe appreciate your time and wish you the best in your search.\n\nBest regards,\nCymonic Talent Team"
+            }
 
 
 def answer_query(question: str, candidates: list, job_roles: list) -> str:
@@ -432,14 +438,17 @@ Rules:
 DATABASE SNAPSHOT:
 {context}"""
 
-    completion = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": question},
-        ],
-        temperature=0.4,
-        max_tokens=700,
-    )
-
-    return completion.choices[0].message.content.strip()
+    try:
+        content = _call_with_retry(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question},
+            ],
+            temperature=0.3,
+            max_tokens=800,
+        )
+        return content.strip()
+    except Exception as e:
+        print(f"[ai_engine] answer_query error: {e}")
+        return f"Unable to retrieve answer from AI service at this moment: {str(e)[:120]}. Please try again shortly."
