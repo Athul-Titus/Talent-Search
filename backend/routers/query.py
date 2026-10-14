@@ -15,6 +15,7 @@ class QueryRequest(BaseModel):
 
 
 @router.post("")
+@router.post("/", include_in_schema=False)
 def run_query(payload: QueryRequest, db: Session = Depends(get_db)):
     """
     Natural Language Query Engine.

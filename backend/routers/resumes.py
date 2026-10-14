@@ -195,28 +195,39 @@ async def upload_resumes(
 
 
 @router.get("/stream/{job_role_id}")
-async def stream_candidate_status(job_role_id: int, request: Request, db: Session = Depends(get_db)):
+async def stream_candidate_status(job_role_id: int, request: Request):
     """Server-Sent Events (SSE) endpoint to stream real-time parsing status changes."""
     async def event_generator():
-        last_states = {}
+        last_states = None
         while True:
             # Check if client disconnected
             if await request.is_disconnected():
                 break
-            
-            # Fetch very lightweight status map from SQLite
-            # This is 1000x faster than downloading full JSON profiles
-            cands = db.query(Candidate.id, Candidate.status).filter(Candidate.job_role_id == job_role_id).all()
-            current_states = {str(c[0]): c[1] for c in cands}
-            
-            # Only broadcast if a candidate changed status!
-            if current_states != last_states:
-                last_states = current_states
-                yield f"data: {json.dumps(current_states)}\\n\\n"
-            
-            await asyncio.sleep(0.5)
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+            # Fetch lightweight status map using a fresh query
+            db_stream = SessionLocal()
+            try:
+                cands = db_stream.query(Candidate.id, Candidate.status).filter(Candidate.job_role_id == job_role_id).all()
+                current_states = {str(c[0]): c[1] for c in cands}
+            finally:
+                db_stream.close()
+
+            # Broadcast on first loop or when status changed
+            if last_states is None or current_states != last_states:
+                last_states = current_states
+                yield f"data: {json.dumps(current_states)}\n\n"
+
+            await asyncio.sleep(1.0)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @router.get("/by-date", response_model=List[dict])

@@ -44,11 +44,23 @@ origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def api_path_normalizer(request: Request, call_next):
+    """
+    Ensure all requests without the /api prefix (e.g. /jobs/, /ranking/1)
+    are seamlessly routed to their respective /api/ routes.
+    """
+    path = request.scope.get("path", "")
+    prefixes = ("/jobs", "/resumes", "/ranking", "/candidates", "/query")
+    if any(path == p or path.startswith(p + "/") for p in prefixes):
+        request.scope["path"] = "/api" + path
+    return await call_next(request)
 
 # ── Global Exception Handler ──────────────────────────────
 @app.exception_handler(Exception)

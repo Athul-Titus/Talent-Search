@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const baseURL = import.meta.env.VITE_API_URL || '/api'
+let rawBase = import.meta.env.VITE_API_URL || '/api'
+if (rawBase.startsWith('http') && !rawBase.endsWith('/api') && !rawBase.endsWith('/api/')) {
+  rawBase = rawBase.replace(/\/+$/, '') + '/api'
+}
+const baseURL = rawBase.replace(/\/+$/, '')
 
 const api = axios.create({
   baseURL: baseURL,
@@ -69,12 +73,10 @@ export const resumesApi = {
     }).then(r => r.data)
   },
   streamUrl:    (jobRoleId)          => {
-    // For deployment, we need the full URL. If baseURL is just '/api', 
-    // we use the current window location to build it.
     const base = baseURL.startsWith('http') 
       ? baseURL 
       : `${window.location.origin}${baseURL}`;
-    return `${base}/resumes/stream/${jobRoleId}`;
+    return `${base.replace(/\/+$/, '')}/resumes/stream/${jobRoleId}`;
   },
   listByJob:    (jobRoleId)          => api.get(`/resumes/${jobRoleId}`).then(r => r.data),
   listByDate:   (jobRoleId = null)   => {

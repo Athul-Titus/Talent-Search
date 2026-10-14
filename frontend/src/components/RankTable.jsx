@@ -332,7 +332,7 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
           key={interviewCandidate.id}
           candidateId={interviewCandidate.id}
           candidateName={isBlindMode ? `Candidate #${String(interviewCandidate.id).padStart(4, '0')}` : interviewCandidate.name}
-          jdText={jdText}
+          jdText={jdText || initialResults?.[0]?.jd_text || ''}
           onClose={() => setInterviewCandidate(null)}
         />
       )}
@@ -343,7 +343,7 @@ export default function RankTable({ results: initialResults, jdText = '', isBlin
           candidateId={emailCandidate.id}
           candidateName={emailCandidate.name}
           candidateEmail={emailCandidate.email}
-          jdText={jdText}
+          jdText={jdText || initialResults?.[0]?.jd_text || ''}
           intent={emailCandidate.intent}
           onClose={() => setEmailCandidate(null)}
         />

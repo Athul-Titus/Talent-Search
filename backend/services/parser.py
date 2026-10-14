@@ -55,18 +55,29 @@ def extract_text_from_docx(file_bytes: bytes) -> str:
     """Extract text from DOCX files."""
     if not DOCX_AVAILABLE:
         raise RuntimeError("python-docx is not installed.")
-    doc = DocxDocument(io.BytesIO(file_bytes))
-    parts = []
-    for para in doc.paragraphs:
-        if para.text.strip():
-            parts.append(para.text)
-    # Also extract table text
-    for table in doc.tables:
-        for row in table.rows:
-            row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
-            if row_text:
-                parts.append(row_text)
-    return "\n".join(parts)
+    try:
+        doc = DocxDocument(io.BytesIO(file_bytes))
+        parts = []
+        for para in doc.paragraphs:
+            if para.text.strip():
+                parts.append(para.text)
+        # Also extract table text
+        for table in doc.tables:
+            for row in table.rows:
+                row_text = " | ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
+                if row_text:
+                    parts.append(row_text)
+        return "\n".join(parts)
+    except Exception as e:
+        # Fallback if text or slightly non-standard file
+        try:
+            raw = file_bytes.decode('utf-8', errors='ignore')
+            clean = "".join(ch for ch in raw if ch.isprintable() or ch in "\n\r\t ")
+            if len(clean.strip()) > 50:
+                return clean
+        except Exception:
+            pass
+        raise RuntimeError(f"Could not extract text from document: {e}")
 
 
 def extract_text_from_image(file_bytes: bytes) -> str:

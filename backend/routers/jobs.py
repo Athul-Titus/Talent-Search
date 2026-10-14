@@ -74,12 +74,14 @@ def build_job_response(job: JobRole) -> dict:
 
 
 
+@router.get("", response_model=List[dict], include_in_schema=False)
 @router.get("/", response_model=List[dict])
 def list_jobs(db: Session = Depends(get_db)):
     jobs = db.query(JobRole).order_by(JobRole.created_at.desc()).all()
     return [build_job_response(j) for j in jobs]
 
 
+@router.post("", response_model=dict, status_code=201, include_in_schema=False)
 @router.post("/", response_model=dict, status_code=201)
 def create_job(payload: JobRoleCreate, db: Session = Depends(get_db)):
     job = JobRole(

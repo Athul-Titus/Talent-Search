@@ -60,6 +60,9 @@ export default function Ranking() {
     rankingApi.getResults(selectedJob)
       .then(data => {
         setResults(data)
+        if (!cachedJd && data.length > 0 && data[0].jd_text) {
+          setJdText(data[0].jd_text)
+        }
         
         // Check for underlying background task
         rankingApi.getStatus(selectedJob).then(status => {
