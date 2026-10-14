@@ -24,25 +24,28 @@ def _score_all(job_role_id: int, jd_text: str, candidate_ids: list, weights: dic
         db.commit()
 
         scores = []
-        
+
         def _score_single(cid):
-            c = db.query(Candidate).filter(Candidate.id == cid).first()
-            if not c or not c.parsed_profile:
-                return None
+            db_worker = SessionLocal()
             try:
+                c = db_worker.query(Candidate).filter(Candidate.id == cid).first()
+                if not c or not c.parsed_profile:
+                    return None
                 result = score_candidate(jd_text, c.parsed_profile)
                 overall = compute_weighted_score(result, weights)
-                return (overall, c, result)
+                return (overall, cid, result)
             except Exception as e:
                 print(f"Scoring error for candidate {cid}: {e}")
                 return None
+            finally:
+                db_worker.close()
 
         # Limit to 3 concurrent workers to avoid NVIDIA NIM rate-limit (503)
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             futures = []
             for i, cid in enumerate(candidate_ids):
                 if i > 0:
-                    time.sleep(1)  # stagger submissions by 1s
+                    time.sleep(0.5)  # stagger submissions
                 futures.append(executor.submit(_score_single, cid))
             for future in concurrent.futures.as_completed(futures):
                 res = future.result()
@@ -52,9 +55,9 @@ def _score_all(job_role_id: int, jd_text: str, candidate_ids: list, weights: dic
         # Sort by score descending
         scores.sort(key=lambda x: x[0], reverse=True)
 
-        for rank, (overall, c, result) in enumerate(scores, start=1):
+        for rank, (overall, cid, result) in enumerate(scores, start=1):
             rr = RankingResult(
-                candidate_id=c.id,
+                candidate_id=cid,
                 job_role_id=job_role_id,
                 jd_text=jd_text,
                 overall_score=overall,
@@ -134,6 +137,7 @@ def get_rankings(job_role_id: int, db: Session = Depends(get_db)):
             "candidate_name": c.name if c else "Unknown",
             "candidate_email": c.email if c else None,
             "overall_score": r.overall_score,
+            "jd_text": r.jd_text,
             "skills_match_score": r.skills_match_score,
             "experience_match_score": r.experience_match_score,
             "education_match_score": r.education_match_score,
