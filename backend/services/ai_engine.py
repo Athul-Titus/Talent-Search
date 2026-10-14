@@ -10,6 +10,8 @@ load_dotenv()
 client = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
     api_key=os.getenv("NVIDIA_API_KEY"),
+    timeout=60.0,
+    max_retries=2,
 )
 
 MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.2-11b-vision-instruct")
@@ -149,14 +151,25 @@ def _call_with_retry(model: str, messages: list, temperature: float = 0.05,
             except Exception as e:
                 err_str = str(e)
                 is_overloaded = "503" in err_str or "overloaded" in err_str.lower() or "rate" in err_str.lower() or "429" in err_str
+                is_connection = (
+                    "connection" in err_str.lower()
+                    or "connect" in err_str.lower()
+                    or "timeout" in err_str.lower()
+                    or "timed out" in err_str.lower()
+                    or "reset" in err_str.lower()
+                    or "eof" in err_str.lower()
+                    or "socket" in err_str.lower()
+                )
                 is_not_found = "404" in err_str or "410" in err_str
                 if is_not_found:
                     # Model gone / unauthorized — skip to next model immediately
                     last_error = e
                     break
-                if is_overloaded and attempt < max_retries - 1:
+                is_retryable = is_overloaded or is_connection
+                if is_retryable and attempt < max_retries - 1:
                     wait = 2 ** attempt  # 1s, 2s, 4s
-                    print(f"[ai_engine] {attempt_model} overloaded, retrying in {wait}s (attempt {attempt+1})")
+                    reason = "overloaded" if is_overloaded else "network/connection error"
+                    print(f"[ai_engine] {attempt_model} {reason}, retrying in {wait}s (attempt {attempt+1})")
                     time.sleep(wait)
                     last_error = e
                     continue
@@ -414,6 +427,80 @@ def generate_workflow_email(parsed_profile: dict, jd_text: str, intent: str) -> 
             }
 
 
+def _local_database_answer(question: str, candidates: list, job_roles: list) -> str:
+    """
+    Intelligent local query fallback when the cloud AI service is unreachable.
+    Answers directly from the verified database snapshot so recruiters never get connection errors.
+    """
+    q = question.lower()
+
+    # 1. Highest score / top candidates / best candidate
+    if any(k in q for k in ["highest", "best", "top", "leader", "rank 1", "score"]):
+        scored = [c for c in candidates if c.get("overall_score") is not None]
+        scored.sort(key=lambda x: x.get("overall_score", 0), reverse=True)
+        if scored:
+            top = scored[0]
+            others = scored[1:4]
+            lines = [
+                f"**{top.get('name')}** has the highest overall match score with **{top.get('overall_score')}%**."
+            ]
+            if top.get("skills"):
+                lines.append(f"- **Top Skills:** {', '.join(top.get('skills', [])[:5])}")
+            if top.get("workflow_status"):
+                lines.append(f"- **Current Status:** `{top.get('workflow_status')}`")
+            if others:
+                lines.append("\n**Runner-ups:**")
+                for c in others:
+                    lines.append(f"- **{c.get('name')}**: {c.get('overall_score')}% (Status: `{c.get('workflow_status', 'pending')}`)")
+            return "\n".join(lines)
+
+    # 2. Shortlisted candidates
+    if "shortlist" in q:
+        shortlisted = [c for c in candidates if c.get("workflow_status") == "shortlisted"]
+        if shortlisted:
+            lines = [f"Found **{len(shortlisted)}** shortlisted candidate(s):"]
+            for c in shortlisted:
+                score_str = f" ({c.get('overall_score')}%)" if c.get("overall_score") else ""
+                lines.append(f"- **{c.get('name')}**{score_str}")
+            return "\n".join(lines)
+        return "There are currently no candidates marked as shortlisted in this role."
+
+    # 3. Credibility / flags / stuffed keywords
+    if any(k in q for k in ["credib", "flag", "stuff", "suspicio", "risk"]):
+        flagged = [c for c in candidates if c.get("credibility") in ("High Suspicion", "Moderate") or (c.get("credibility_score") and c.get("credibility_score") < 70)]
+        if flagged:
+            lines = [f"Found **{len(flagged)}** candidate(s) with credibility flags:"]
+            for c in flagged:
+                lines.append(f"- **{c.get('name')}**: Flagged as *{c.get('credibility', 'Moderate')}* (Credibility score: {c.get('credibility_score', 'N/A')}%)")
+            return "\n".join(lines)
+        return "All candidates currently evaluated appear credible with no high suspicion flags."
+
+    # 4. Specific skills search (e.g. Python, React, Java, SQL, etc.)
+    common_skills = ["python", "react", "java", "sql", "javascript", "typescript", "django", "node", "aws", "docker", "c++", "machine learning"]
+    matched_skills = [s for s in common_skills if s in q]
+    if matched_skills:
+        skill = matched_skills[0]
+        with_skill = [c for c in candidates if any(skill in sk.lower() for sk in c.get("skills", []))]
+        with_skill.sort(key=lambda x: x.get("overall_score") or 0, reverse=True)
+        if with_skill:
+            lines = [f"Candidates with **{skill.title()}** skills:"]
+            for c in with_skill[:5]:
+                score_str = f" - Score: {c.get('overall_score')}%" if c.get("overall_score") else ""
+                lines.append(f"- **{c.get('name')}**{score_str} (Skills: {', '.join(c.get('skills', [])[:4])})")
+            return "\n".join(lines)
+        return f"No candidates currently list skills matching '{skill.title()}'."
+
+    # 5. General fallback summary
+    if candidates:
+        lines = [f"Here is a summary of the current candidate pipeline ({len(candidates)} total):"]
+        for c in candidates[:4]:
+            score_str = f" - Score: {c.get('overall_score')}%" if c.get("overall_score") else ""
+            status_str = f" [{c.get('workflow_status', 'pending')}]"
+            lines.append(f"- **{c.get('name')}**{score_str}{status_str}")
+        return "\n".join(lines)
+    return "No candidate data is currently available in the database."
+
+
 def answer_query(question: str, candidates: list, job_roles: list) -> str:
     """
     Cymonic Query Engine: answers a natural language question based on a 
@@ -455,5 +542,5 @@ DATABASE SNAPSHOT:
         )
         return content.strip()
     except Exception as e:
-        print(f"[ai_engine] answer_query error: {e}")
-        return f"Unable to retrieve answer from AI service at this moment: {str(e)[:120]}. Please try again shortly."
+        print(f"[ai_engine] answer_query AI unreachable ({e}), using local database snapshot fallback")
+        return _local_database_answer(question, candidates, job_roles)
