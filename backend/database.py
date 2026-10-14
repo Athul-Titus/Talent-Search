@@ -4,9 +4,15 @@ from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
 
+from pathlib import Path
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./talent_engine.db")
+BASE_DIR = Path(__file__).resolve().parent
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+if not DATABASE_URL or DATABASE_URL in ("sqlite:///./talent_engine.db", "sqlite:///talent_engine.db"):
+    db_file = BASE_DIR / "talent_engine.db"
+    DATABASE_URL = f"sqlite:///{db_file.as_posix()}"
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine

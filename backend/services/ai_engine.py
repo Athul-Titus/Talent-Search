@@ -12,14 +12,17 @@ client = OpenAI(
     api_key=os.getenv("NVIDIA_API_KEY"),
 )
 
-MODEL = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3-super-120b-a12b")
+MODEL = os.getenv("NVIDIA_MODEL", "meta/llama-3.2-11b-vision-instruct")
 FAST_MODEL = os.getenv("NVIDIA_FAST_MODEL", "meta/llama-3.2-11b-vision-instruct")
 
-# Fallback chain: if primary model is overloaded, try these in order
+# Fallback chain: if primary model is overloaded or fails, try these in order
 MODEL_FALLBACKS = [
     MODEL,
     FAST_MODEL,
+    "nvidia/nemotron-3-super-120b-a12b",
 ]
+# Deduplicate while preserving order
+MODEL_FALLBACKS = list(dict.fromkeys(MODEL_FALLBACKS))
 
 
 PARSE_PROMPT = """You are an expert HR analyst and resume parser. Extract structured information from the resume text below.
@@ -98,7 +101,9 @@ Scoring guidelines:
 
 def _clean_json(content: str) -> str:
     """Strip markdown fences if present."""
-    content = content.strip()
+    if not content:
+        return ""
+    content = str(content).strip()
     if content.startswith("```"):
         content = re.sub(r"^```[a-z]*\n?", "", content)
         content = re.sub(r"```$", "", content)
@@ -107,8 +112,8 @@ def _clean_json(content: str) -> str:
 
 def _call_with_retry(model: str, messages: list, temperature: float = 0.05,
                      max_tokens: int = 1024, seed: int = None,
-                     max_retries: int = 4) -> str:
-    """Call NVIDIA NIM with exponential backoff retry and model fallback on 503/empty."""
+                     max_retries: int = 3) -> str:
+    """Call NVIDIA NIM with exponential backoff retry and model fallback on 503/empty/timeout."""
     models_to_try = [model] + [m for m in MODEL_FALLBACKS if m != model]
     last_error = None
     for attempt_model in models_to_try:
@@ -123,7 +128,15 @@ def _call_with_retry(model: str, messages: list, temperature: float = 0.05,
                 if seed is not None:
                     kwargs["seed"] = seed
                 response = client.chat.completions.create(**kwargs)
-                content = response.choices[0].message.content or ""
+                choice = response.choices[0]
+                content = choice.message.content or ""
+                # If content is empty but model produced reasoning_content, check for JSON inside reasoning
+                if not content.strip() and hasattr(choice.message, "reasoning_content") and choice.message.reasoning_content:
+                    rc = choice.message.reasoning_content or ""
+                    m = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', rc)
+                    if m:
+                        content = m.group(1)
+
                 # If model returned empty string, treat as retryable
                 if not content.strip():
                     print(f"[ai_engine] {attempt_model} returned empty response, retrying ({attempt+1})")
@@ -135,20 +148,20 @@ def _call_with_retry(model: str, messages: list, temperature: float = 0.05,
                 return content
             except Exception as e:
                 err_str = str(e)
-                is_overloaded = "503" in err_str or "overloaded" in err_str.lower() or "rate" in err_str.lower()
+                is_overloaded = "503" in err_str or "overloaded" in err_str.lower() or "rate" in err_str.lower() or "429" in err_str
                 is_not_found = "404" in err_str or "410" in err_str
                 if is_not_found:
-                    # Model gone — skip to next model immediately
+                    # Model gone / unauthorized — skip to next model immediately
                     last_error = e
                     break
                 if is_overloaded and attempt < max_retries - 1:
-                    wait = 2 ** attempt  # 1s, 2s, 4s, 8s
+                    wait = 2 ** attempt  # 1s, 2s, 4s
                     print(f"[ai_engine] {attempt_model} overloaded, retrying in {wait}s (attempt {attempt+1})")
                     time.sleep(wait)
                     last_error = e
                     continue
                 last_error = e
-                break  # non-retryable error
+                break  # non-retryable error, try next model
     raise last_error
 
 
@@ -159,15 +172,16 @@ def _parse_json_safe(raw: str, context: str = "") -> dict:
         raise ValueError(f"Model returned empty response{' for ' + context if context else ''}")
     try:
         return json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        # Try to extract JSON object from within the text (model may have added extra text)
-        match = re.search(r'\{.*\}', cleaned, re.DOTALL)
+    except json.JSONDecodeError:
+        # Extract the outermost JSON object or array from anywhere in the text
+        match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', cleaned)
         if match:
+            candidate_json = match.group(1)
             try:
-                return json.loads(match.group())
+                return json.loads(candidate_json)
             except json.JSONDecodeError:
                 pass
-        raise ValueError(f"Invalid JSON from model{' for ' + context if context else ''}: {e} | raw: {cleaned[:200]}")
+        raise ValueError(f"Invalid JSON from model{' for ' + context if context else ''}: raw: {cleaned[:200]}")
 
 
 def parse_resume(text: str) -> dict:
