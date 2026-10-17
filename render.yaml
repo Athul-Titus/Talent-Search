@@ -9,7 +9,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.10.0
       - key: NVIDIA_MODEL
-        value: "nvidia/nemotron-3-super-120b-a12b"
+        value: "meta/llama-3.2-11b-vision-instruct"
       - key: NVIDIA_FAST_MODEL
         value: "meta/llama-3.2-11b-vision-instruct"
       - key: DATABASE_URL

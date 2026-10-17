@@ -3,9 +3,9 @@ import json
 import re
 import time
 from openai import OpenAI
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 client = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
