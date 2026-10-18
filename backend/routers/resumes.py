@@ -91,19 +91,26 @@ def _run_parse(candidate_id: int, file_bytes: bytes, file_name: str):
             from services.ai_engine import analyze_credibility
             ai_cred = analyze_credibility(profile)
 
-            # Merge: use whichever flags MORE strongly (lower score = more suspicious)
-            if ai_cred["credibility_score"] <= algo_result["credibility_score"]:
+            cand_skills_map = {s.lower().strip(): s for s in profile.get("skills", [])}
+            algo_stuffed = [cand_skills_map[s.lower().strip()] for s in algo_result.get("stuffed_keywords", []) if s.lower().strip() in cand_skills_map]
+            ai_stuffed = [cand_skills_map[s.lower().strip()] for s in ai_cred.get("stuffed_keywords", []) if s.lower().strip() in cand_skills_map]
+
+            # If either check recognizes valid project/experience backing, don't penalize unfairly
+            if ai_cred.get("flag_level") == "Credible" and algo_result.get("flag_level") != "High Suspicion":
                 cred = ai_cred
-            else:
+                cred["stuffed_keywords"] = ai_stuffed
+            elif algo_result.get("flag_level") == "Credible":
                 cred = algo_result
-                # But merge in AI's stuffed_keywords if they add information
-                merged_keywords = list(
-                    set(algo_result.get("stuffed_keywords", []))
-                    | set(ai_cred.get("stuffed_keywords", []))
-                )
+                cred["stuffed_keywords"] = algo_stuffed
+            else:
+                cred = ai_cred if ai_cred["credibility_score"] <= algo_result["credibility_score"] else algo_result
+                merged_keywords = list(dict.fromkeys(algo_stuffed + ai_stuffed))
                 cred["stuffed_keywords"] = merged_keywords[:12]
         except Exception:
+            cand_skills_map = {s.lower().strip(): s for s in profile.get("skills", [])}
+            algo_stuffed = [cand_skills_map[s.lower().strip()] for s in algo_result.get("stuffed_keywords", []) if s.lower().strip() in cand_skills_map]
             cred = algo_result
+            cred["stuffed_keywords"] = algo_stuffed
 
         # ⑤ Persist credibility data
         candidate.credibility_score  = cred["credibility_score"]

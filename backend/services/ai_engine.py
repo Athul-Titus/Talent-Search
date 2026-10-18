@@ -45,6 +45,13 @@ Required JSON structure:
       "description": "Brief role description"
     }
   ],
+  "projects": [
+    {
+      "name": "Project Name",
+      "technologies": ["React", "FastAPI", "NVIDIA NIM"],
+      "description": "Brief description of the project"
+    }
+  ],
   "education": [
     {
       "degree": "Bachelor of Science",
@@ -231,7 +238,7 @@ def score_candidate(jd_text: str, candidate_profile: dict) -> dict:
 # ── Credibility / Anti-Keyword-Stuffing ─────────────────────────────────────
 
 CREDIBILITY_PROMPT = """You are an expert HR fraud analyst specialising in detecting resume keyword stuffing.
-Analyse whether this candidate's listed skills are genuinely backed by their work experience, projects, or certifications.
+Analyse whether this candidate's listed skills are genuinely backed by their work experience, projects, education, or certifications.
 Return ONLY a valid JSON object. No markdown, no explanation, no extra text.
 
 Candidate Profile (JSON):
@@ -239,20 +246,21 @@ Candidate Profile (JSON):
 
 Return this exact structure:
 {{
-  "credibility_score": 75,
-  "flag_level": "Moderate",
-  "stuffed_keywords": ["Docker", "Kubernetes"],
+  "credibility_score": 85,
+  "flag_level": "Credible",
+  "stuffed_keywords": [],
   "reason": "One sentence explaining the credibility assessment."
 }}
 
 Rules:
 - credibility_score: 0 (obvious stuffing) to 100 (all skills clearly evidenced)
 - flag_level must be EXACTLY one of: "High Suspicion", "Moderate", "Credible"
-  · "High Suspicion" → credibility_score < 40  (many skills with no evidence whatsoever)
+  · "High Suspicion" → credibility_score < 40  (many skills listed in isolation with no evidence or project context)
   · "Moderate"       → 40-70 (some skills appear listed without clear project/job backing)
-  · "Credible"       → > 70  (skills are well supported by experience and projects)
-- stuffed_keywords: skills that appear LISTED but are NOT backed by any experience entry, project, or certification
-- reason: exactly ONE sentence, specific about which signals triggered the flag
+  · "Credible"       → > 70  (skills are supported by projects, experience, or certifications)
+- Skills demonstrated in student, personal, hackathon, or open-source projects ARE LEGITIMATE AND BACKED.
+- stuffed_keywords: ONLY include skills that are EXPLICITLY present in the candidate's skills list above, but have ZERO supporting context in their experience or projects. If all skills are reasonable, return []. NEVER invent or hallucinate skills that are not in the candidate's skills list.
+- reason: exactly ONE sentence, specific about which signals triggered the evaluation
 """
 
 
@@ -280,10 +288,19 @@ def analyze_credibility(parsed_profile: dict) -> dict:
         if flag_level not in flag_map:
             flag_level = "Moderate"
 
+        # Strictly constrain stuffed_keywords to skills actually listed in the candidate's profile
+        actual_skills_map = {s.lower().strip(): s for s in parsed_profile.get("skills", [])}
+        raw_stuffed = data.get("stuffed_keywords") or []
+        clean_stuffed = [
+            actual_skills_map[s.lower().strip()]
+            for s in raw_stuffed
+            if isinstance(s, str) and s.lower().strip() in actual_skills_map
+        ]
+
         return {
             "credibility_score": max(0, min(100, int(data.get("credibility_score", 50)))),
             "flag_level": flag_level,
-            "stuffed_keywords": data.get("stuffed_keywords") or [],
+            "stuffed_keywords": clean_stuffed,
             "reason": data.get("reason") or "Unable to determine credibility.",
         }
     except Exception as e:

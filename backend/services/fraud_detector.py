@@ -14,7 +14,9 @@ def _normalise(text: str) -> str:
 
 def algorithmic_credibility(profile: dict, raw_text: str = "") -> dict:
     """
-    Purely algorithmic credibility check based on the parsed profile.
+    Algorithmic credibility check based on the parsed profile and document context.
+    Evaluates whether listed skills have corresponding context across work experience,
+    projects, certifications, and resume narrative.
 
     Returns:
       credibility_score  : int  0-100
@@ -22,9 +24,12 @@ def algorithmic_credibility(profile: dict, raw_text: str = "") -> dict:
       stuffed_keywords   : list  skills that have NO backing evidence
       reason             : str  one-line human explanation
     """
-    skills       = profile.get("skills") or []
-    experience   = profile.get("experience") or []
-    certs        = profile.get("certifications") or []
+    skills = profile.get("skills") or []
+    experience = profile.get("experience") or []
+    projects = profile.get("projects") or []
+    certs = profile.get("certifications") or []
+    summary = profile.get("summary") or ""
+    education = profile.get("education") or []
 
     total_skills = len(skills)
     if total_skills == 0:
@@ -35,93 +40,107 @@ def algorithmic_credibility(profile: dict, raw_text: str = "") -> dict:
             "reason": "No skills listed — unable to verify credibility.",
         }
 
-    # ── Build evidence corpus ──────────────────────────────────────
-    # Combine all experience descriptions + certifications
-    exp_texts = []
+    # ── 1. Build comprehensive evidence corpus ───────────────────────
+    evidence_parts = []
+
+    # Experience details
     prof_count = 0
     for exp in experience:
         exp_type = (exp.get("type") or "").lower()
         if exp_type == "professional":
             prof_count += 1
-        desc = " ".join([
-            str(exp.get("title", "")),
-            str(exp.get("company", "")),
-            str(exp.get("description", "")),
+        evidence_parts.extend([
+            str(exp.get("title") or ""),
+            str(exp.get("company") or ""),
+            str(exp.get("description") or ""),
         ])
-        exp_texts.append(desc)
 
-    evidence_text = " ".join(exp_texts + certs)
-    if not evidence_text.strip():
-        # Fallback if no structured experience was parsed
-        evidence_text = raw_text or ""
-    corpus = _normalise(evidence_text)
+    # Projects (critical for students, open-source contributors, and developers)
+    for prj in projects:
+        evidence_parts.extend([
+            str(prj.get("name") or prj.get("title") or ""),
+            str(prj.get("description") or ""),
+            " ".join(prj.get("technologies") or []),
+        ])
 
-    # ── Backed vs stuffed skills ───────────────────────────────────
-    backed_skills   = []
-    stuffed_skills  = []
+    # Certifications & summary
+    evidence_parts.extend([str(c) for c in certs])
+    if summary:
+        evidence_parts.append(str(summary))
+
+    # Education fields
+    for edu in education:
+        evidence_parts.extend([
+            str(edu.get("degree") or ""),
+            str(edu.get("field") or ""),
+            str(edu.get("institution") or ""),
+        ])
+
+    # Raw text narrative (exclude isolated skills header blocks to isolate project/work narrative)
+    if raw_text:
+        lines = raw_text.split("\n")
+        non_skills = []
+        in_skills = False
+        for l in lines:
+            nl = l.strip().lower()
+            if any(h in nl for h in ["technical skills", "skills:", "skills &", "core skills", "key skills", "competencies"]):
+                in_skills = True
+                continue
+            if in_skills and any(h in nl for h in ["project", "experience", "education", "certifications", "summary", "hackathon", "achievements", "employment", "internship"]):
+                in_skills = False
+            if not in_skills:
+                non_skills.append(l)
+        evidence_parts.append(" ".join(non_skills))
+
+    corpus = _normalise(" ".join(evidence_parts))
+
+    # ── 2. Backed vs unbacked skills ────────────────────────────────
+    backed_skills = []
+    unbacked_skills = []
+    
+    stop_words = {"and", "for", "the", "with", "basics", "core", "tool", "tools", "using"}
     for skill in skills:
         norm_skill = _normalise(skill)
-        # A skill is "backed" if any meaningful word from it appears in corpus
-        words = [w for w in norm_skill.split() if len(w) > 2]
-        if any(w in corpus for w in words):
+        words = [w for w in norm_skill.split() if len(w) > 1 and w not in stop_words]
+        if not words:
+            words = [norm_skill.strip()] if norm_skill.strip() else []
+
+        # A skill is backed if key terms appear in evidence corpus
+        is_backed = False
+        if norm_skill in corpus:
+            is_backed = True
+        elif any(w in corpus for w in words):
+            is_backed = True
+        
+        if is_backed:
             backed_skills.append(skill)
         else:
-            stuffed_skills.append(skill)
+            unbacked_skills.append(skill)
 
-    credibility_ratio = len(backed_skills) / total_skills
+    credibility_ratio = len(backed_skills) / total_skills if total_skills > 0 else 1.0
 
-    # ── Keyword repetition check ───────────────────────────────────
-    # Count how often each skill word appears in entire raw text
-    raw_lower = _normalise(raw_text or "")
-    skill_counts = Counter()
-    for skill in skills:
-        words = [w for w in _normalise(skill).split() if len(w) > 2]
-        for w in words:
-            skill_counts[w] += raw_lower.split().count(w)
-
-    # Skills whose words appear 3+ times are considered repeatedly stuffed
-    repeat_offenders = [
-        skill for skill in skills
-        if any(
-            skill_counts[w] >= 3
-            for w in [ww for ww in _normalise(skill).split() if len(ww) > 2]
-        )
-        and skill in stuffed_skills   # only flag if already unsupported
-    ]
-
-    # ── Auto-flag: 20+ skills but < 2 professional experiences ────
-    auto_flag_high = total_skills >= 20 and prof_count < 2
-
-    # ── Determine flag level ───────────────────────────────────────
-    if auto_flag_high or credibility_ratio < 0.40:
-        flag_level = "High Suspicion"
-        score = max(5, int(credibility_ratio * 40))
-        if auto_flag_high:
-            reason = (
-                f"{total_skills} skills listed but only {prof_count} "
-                f"professional position(s) found — likely keyword stuffing."
-            )
-        else:
-            n_unsupported = len(stuffed_skills)
-            reason = (
-                f"{n_unsupported} of {total_skills} skills have no supporting "
-                f"work experience or project entry."
-            )
-    elif credibility_ratio < 0.70:
-        flag_level = "Moderate"
-        score = int(40 + credibility_ratio * 45)
-        reason = (
-            f"{len(stuffed_skills)} skill(s) lack explicit backing in "
-            f"experience or projects."
-        )
-    else:
+    # ── 3. Determine flag level and score ───────────────────────────
+    # A candidate is Credible if >= 70% of skills are backed, or if they have at most 3 unbacked general skills
+    if credibility_ratio >= 0.70 or (len(unbacked_skills) <= 3 and total_skills >= 5):
         flag_level = "Credible"
-        score = int(70 + credibility_ratio * 30)
-        reason = "Skills are well supported by documented work experience and projects."
+        score = min(100, int(75 + credibility_ratio * 25))
+        reason = "Skills are well supported by documented work experience, projects, or education."
+        stuffed_for_display = unbacked_skills[:6]
+    elif credibility_ratio >= 0.40:
+        flag_level = "Moderate"
+        score = int(45 + credibility_ratio * 30)
+        reason = f"{len(unbacked_skills)} skill(s) lack explicit context in project or experience entries."
+        stuffed_for_display = unbacked_skills[:12]
+    else:
+        flag_level = "High Suspicion"
+        score = max(10, int(credibility_ratio * 40))
+        reason = f"{len(unbacked_skills)} of {total_skills} skills have no supporting work experience or project entry."
+        stuffed_for_display = unbacked_skills[:12]
 
+    # Stuffed keywords must strictly be a subset of candidate's own skills
     return {
-        "credibility_score": min(score, 100),
+        "credibility_score": score,
         "flag_level": flag_level,
-        "stuffed_keywords": stuffed_skills[:12],  # cap list length
+        "stuffed_keywords": stuffed_for_display,
         "reason": reason,
     }
